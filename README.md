@@ -26,18 +26,27 @@ APK
 
 Local files are copied from `content://` URIs into private app storage and exposed to the WebView through `WebViewAssetLoader` under the HTTPS-like `appassets.androidplatform.net` origin.
 
-## Build
+## Canonical build host
 
-The Git bundle bootstrap intentionally leaves Gradle wrapper generation to the target Termux environment:
+Android builds run on the separate Linux workstation.
 
-```bash
-bash scripts/termux-bootstrap-and-publish.sh
+```text
+checkout: $HOME/projects/molstar-android-viewer-bootstrap
+SDK:      $HOME/opt/Android
 ```
 
-To create a private GitHub repository and push it in the same run:
+Build and verify:
 
 ```bash
-PUBLISH=1 VISIBILITY=private bash scripts/termux-bootstrap-and-publish.sh
+bash scripts/linux-bootstrap-and-publish.sh
+```
+
+The SDK path can be overridden with `ANDROID_SDK_ROOT`, `ANDROID_HOME`, or `ANDROID_SDK_CANDIDATE`.
+
+Create and push a private GitHub repository only when requested:
+
+```bash
+PUBLISH=1 VISIBILITY=private bash scripts/linux-bootstrap-and-publish.sh
 ```
 
 ## Verify
@@ -46,4 +55,19 @@ PUBLISH=1 VISIBILITY=private bash scripts/termux-bootstrap-and-publish.sh
 bash scripts/verify.sh
 ```
 
-See `docs/architecture.md` and `docs/local-handoff.md`.
+`VERIFY_BUILD=auto` builds when both the Gradle wrapper and SDK are available. Use `VERIFY_BUILD=always` to require a build or `VERIFY_BUILD=never` for static verification only.
+
+## Collaboration
+
+- Google Drive carries bounded assistant/user `.tar.zst` packages and complete result archives.
+- The Linux workstation uses `rclone`; the assistant uses the Google Drive connector against the same exchange folders.
+- The Android device is optional runtime evidence only and is accessed from Linux with `adb`.
+- Termux and rsync are not part of this workflow.
+- Git remains the canonical source and history authority.
+
+See:
+
+- `docs/architecture.md`
+- `docs/linux-handoff.md`
+- `docs/COLLABORATION_PROTOCOL.md`
+- `docs/GITHUB_COLLABORATION_WORKFLOW.md`

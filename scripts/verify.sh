@@ -3,6 +3,10 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
+VERIFY_BUILD="${VERIFY_BUILD:-auto}"
+ANDROID_SDK_CANDIDATE="${ANDROID_SDK_CANDIDATE:-$HOME/opt/Android}"
+export ANDROID_SDK_CANDIDATE
+
 required=(
   app/src/main/assets/viewer/index.html
   app/src/main/assets/viewer/app-bridge.js
@@ -16,6 +20,10 @@ for path in "${required[@]}"; do
   [[ -s "$path" ]] || { echo "missing or empty: $path" >&2; exit 1; }
 done
 
+for cmd in node sha256sum grep; do
+  command -v "$cmd" >/dev/null || { echo "missing command: $cmd" >&2; exit 1; }
+done
+
 node --check app/src/main/assets/viewer/app-bridge.js
 (
   cd app/src/main/assets/viewer/vendor/molstar
@@ -25,8 +33,39 @@ node --check app/src/main/assets/viewer/app-bridge.js
 grep -q 'window.MolApp' app/src/main/assets/viewer/app-bridge.js
 grep -q 'WebViewAssetLoader' app/src/main/java/io/github/daylight00/molstarandroid/MainActivity.kt
 
-if [[ -x ./gradlew && -n "${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}" ]]; then
+do_build=0
+case "$VERIFY_BUILD" in
+  never)
+    do_build=0
+    ;;
+  auto)
+    if [[ -x ./gradlew ]]; then
+      # shellcheck source=scripts/lib/android-env.sh
+      source "$ROOT/scripts/lib/android-env.sh"
+      if resolve_android_sdk "$ROOT"; then
+        do_build=1
+      fi
+    fi
+    ;;
+  always)
+    [[ -x ./gradlew ]] || { echo "Gradle wrapper is unavailable" >&2; exit 1; }
+    # shellcheck source=scripts/lib/android-env.sh
+    source "$ROOT/scripts/lib/android-env.sh"
+    resolve_android_sdk "$ROOT"
+    do_build=1
+    ;;
+  *)
+    echo "VERIFY_BUILD must be auto, always, or never" >&2
+    exit 1
+    ;;
+esac
+
+if [[ "$do_build" == "1" ]]; then
   ./gradlew --no-daemon :app:assembleDebug
+  APK="$(find app/build/outputs/apk/debug -maxdepth 1 -type f -name '*.apk' -print -quit)"
+  [[ -n "$APK" && -s "$APK" ]] || { echo "debug APK was not produced" >&2; exit 1; }
+  echo "Android build passed: $APK"
+  sha256sum "$APK"
 else
-  echo "Static verification passed; Android build deferred (wrapper or SDK unavailable)."
+  echo "Static verification passed; Android build deferred."
 fi
