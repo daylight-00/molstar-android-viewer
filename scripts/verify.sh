@@ -42,6 +42,14 @@ bash -n scripts/rclone/push-user-result.sh
 
 grep -q 'window.MolApp' app/src/main/assets/viewer/app-bridge.js
 grep -q 'WebViewAssetLoader' app/src/main/java/io/github/daylight00/molstarandroid/MainActivity.kt
+grep -q 'onShowFileChooser' app/src/main/java/io/github/daylight00/molstarandroid/MainActivity.kt
+grep -q 'WindowInsets.Type.systemBars()' app/src/main/java/io/github/daylight00/molstarandroid/MainActivity.kt
+grep -q 'WindowInsets.Type.displayCutout()' app/src/main/java/io/github/daylight00/molstarandroid/MainActivity.kt
+grep -q 'android:windowNoTitle">true' app/src/main/res/values/styles.xml
+if grep -q 'onCreateOptionsMenu' app/src/main/java/io/github/daylight00/molstarandroid/MainActivity.kt; then
+  echo 'persistent Android options menu must remain absent' >&2
+  exit 1
+fi
 
 do_build=0
 case "$VERIFY_BUILD" in

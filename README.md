@@ -7,10 +7,11 @@ A thin Android host for the official Mol* Viewer bundle.
 The application keeps Mol*'s complete built-in UI. Android handles only platform integration:
 
 - APK lifecycle and WebView hosting
-- local structure files through the Storage Access Framework
+- local structure files through Mol*'s own file controls and Android share/open intents
 - `VIEW` and `SEND` intents
 - PDB ID loading
-- visible startup diagnostics for WebView or Mol* initialization failures
+- system-bar inset handling without a persistent native app bar
+- native reload and diagnostics controls only when WebView or Mol* startup fails
 - an intentionally small JSON bridge for possible future UI integration
 
 The project does not fork Mol* and does not implement molecular rendering natively.
@@ -25,7 +26,9 @@ APK
         └── official Mol* viewer bundle
 ```
 
-Local files are copied from `content://` URIs into private app storage and exposed to the WebView through `WebViewAssetLoader` under the HTTPS-like `appassets.androidplatform.net` origin.
+Files selected inside Mol* are returned through `WebChromeClient.onShowFileChooser`. Files received from Android `VIEW` or `SEND` intents are copied from `content://` URIs into private app storage and exposed through `WebViewAssetLoader` under the HTTPS-like `appassets.androidplatform.net` origin.
+
+The Android action bar is intentionally absent. Mol* owns the normal viewer UI; Android shows native recovery controls only when startup fails.
 
 ## Canonical build host
 

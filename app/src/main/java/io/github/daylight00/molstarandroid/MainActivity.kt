@@ -3,6 +3,7 @@ package io.github.daylight00.molstarandroid
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.AlertDialog
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
@@ -10,19 +11,18 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.OpenableColumns
 import android.util.Log
-import android.view.Menu
-import android.view.MenuItem
 import android.view.ViewGroup
+import android.view.WindowInsets
 import android.webkit.ConsoleMessage
 import android.webkit.JavascriptInterface
 import android.webkit.RenderProcessGoneDetail
+import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import android.widget.EditText
 import android.widget.Toast
 import androidx.webkit.WebViewAssetLoader
 import org.json.JSONObject
@@ -36,11 +36,12 @@ class MainActivity : Activity() {
     private var viewerReady = false
     private var viewerBootFailed = false
     private var lastViewerError: String? = null
+    private var webFileChooserCallback: ValueCallback<Array<Uri>>? = null
+    private var recoveryDialog: AlertDialog? = null
     private val pendingCommands = ArrayDeque<JSONObject>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        title = "Mol* Viewer"
 
         viewerFilesDir = File(filesDir, "viewer-files").apply { mkdirs() }
         assetLoader = WebViewAssetLoader.Builder()
@@ -66,6 +67,7 @@ class MainActivity : Activity() {
                 ViewGroup.LayoutParams.MATCH_PARENT,
             )
             setBackgroundColor(Color.rgb(16, 20, 24))
+            applySystemBarInsets(this)
             settings.apply {
                 javaScriptEnabled = true
                 domStorageEnabled = true
@@ -82,6 +84,33 @@ class MainActivity : Activity() {
                             "(${consoleMessage.sourceId()}:${consoleMessage.lineNumber()})",
                     )
                     return true
+                }
+
+                override fun onShowFileChooser(
+                    webView: WebView,
+                    filePathCallback: ValueCallback<Array<Uri>>,
+                    fileChooserParams: WebChromeClient.FileChooserParams,
+                ): Boolean {
+                    webFileChooserCallback?.onReceiveValue(null)
+                    webFileChooserCallback = filePathCallback
+                    val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                        addCategory(Intent.CATEGORY_OPENABLE)
+                        type = "*/*"
+                        putExtra(
+                            Intent.EXTRA_ALLOW_MULTIPLE,
+                            fileChooserParams.mode == WebChromeClient.FileChooserParams.MODE_OPEN_MULTIPLE,
+                        )
+                    }
+                    return try {
+                        startActivityForResult(intent, REQUEST_WEB_FILE_CHOOSER)
+                        true
+                    } catch (error: ActivityNotFoundException) {
+                        Log.e(TAG, "No Android file picker is available", error)
+                        webFileChooserCallback = null
+                        filePathCallback.onReceiveValue(null)
+                        toast("No file picker is available")
+                        true
+                    }
                 }
             }
             webViewClient = object : WebViewClient() {
@@ -128,92 +157,57 @@ class MainActivity : Activity() {
                     view: WebView,
                     detail: RenderProcessGoneDetail,
                 ): Boolean {
-                    reportHostFailure("WebView renderer exited; recreating viewer")
+                    val message = "WebView renderer exited and was restarted"
+                    Log.e(TAG, "$message; didCrash=${detail.didCrash()}")
                     (view.parent as? ViewGroup)?.removeView(view)
                     view.destroy()
                     createWebView(null)
+                    viewerBootFailed = true
+                    lastViewerError = message
+                    showRecoveryDialog(message)
                     return true
                 }
             }
         }
 
         setContentView(webView)
+        webView.requestApplyInsets()
         if (savedInstanceState == null || webView.restoreState(savedInstanceState) == null) {
             webView.loadUrl(ViewerContract.ENTRYPOINT)
         }
     }
 
-    override fun onCreateOptionsMenu(menu: Menu): Boolean {
-        menu.add(Menu.NONE, MENU_OPEN_FILE, Menu.NONE, "Open file")
-            .setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM)
-        menu.add(Menu.NONE, MENU_OPEN_PDB, Menu.NONE, "Open PDB ID")
-            .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
-        menu.add(Menu.NONE, MENU_CLEAR, Menu.NONE, "Clear")
-            .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
-        menu.add(Menu.NONE, MENU_RELOAD, Menu.NONE, "Reload viewer")
-            .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
-        menu.add(Menu.NONE, MENU_DIAGNOSTICS, Menu.NONE, "Diagnostics")
-            .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
-        return true
-    }
-
-    override fun onOptionsItemSelected(item: MenuItem): Boolean = when (item.itemId) {
-        MENU_OPEN_FILE -> {
-            launchFilePicker()
-            true
-        }
-        MENU_OPEN_PDB -> {
-            promptForPdbId()
-            true
-        }
-        MENU_CLEAR -> {
-            dispatch(ViewerContract.clear())
-            true
-        }
-        MENU_RELOAD -> {
-            reloadViewer()
-            true
-        }
-        MENU_DIAGNOSTICS -> {
-            showDiagnostics()
-            true
-        }
-        else -> super.onOptionsItemSelected(item)
-    }
-
-    private fun launchFilePicker() {
-        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-            addCategory(Intent.CATEGORY_OPENABLE)
-            type = "*/*"
-        }
-        startActivityForResult(intent, REQUEST_OPEN_FILE)
-    }
-
-    private fun promptForPdbId() {
-        val input = EditText(this).apply {
-            hint = "1CRN"
-            isSingleLine = true
-        }
-        AlertDialog.Builder(this)
-            .setTitle("Open PDB ID")
-            .setView(input)
-            .setPositiveButton("Open") { _, _ ->
-                val id = input.text.toString().trim()
-                if (id.matches(Regex("[A-Za-z0-9]{4}"))) {
-                    dispatch(ViewerContract.openPdb(id))
-                } else {
-                    toast("Enter a four-character PDB ID")
-                }
+    private fun applySystemBarInsets(view: WebView) {
+        view.setOnApplyWindowInsetsListener { target, insets ->
+            if (Build.VERSION.SDK_INT >= 30) {
+                val bars = insets.getInsets(
+                    WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout(),
+                )
+                target.setPadding(bars.left, bars.top, bars.right, bars.bottom)
+                WindowInsets.CONSUMED
+            } else {
+                @Suppress("DEPRECATION")
+                target.setPadding(
+                    insets.systemWindowInsetLeft,
+                    insets.systemWindowInsetTop,
+                    insets.systemWindowInsetRight,
+                    insets.systemWindowInsetBottom,
+                )
+                @Suppress("DEPRECATION")
+                insets.consumeSystemWindowInsets()
             }
-            .setNegativeButton("Cancel", null)
-            .show()
+        }
     }
 
     @Deprecated("Retained for a dependency-light bootstrap project")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == REQUEST_OPEN_FILE && resultCode == RESULT_OK) {
-            data?.data?.let(::importAndOpen)
+        if (requestCode == REQUEST_WEB_FILE_CHOOSER) {
+            val callback = webFileChooserCallback
+            webFileChooserCallback = null
+            callback?.onReceiveValue(
+                WebChromeClient.FileChooserParams.parseResult(resultCode, data),
+            )
         }
     }
 
@@ -300,6 +294,8 @@ class MainActivity : Activity() {
     }
 
     private fun reloadViewer() {
+        recoveryDialog?.dismiss()
+        recoveryDialog = null
         viewerReady = false
         viewerBootFailed = false
         lastViewerError = null
@@ -311,7 +307,19 @@ class MainActivity : Activity() {
         viewerBootFailed = true
         lastViewerError = message
         Log.e(TAG, message)
-        toast(message)
+        showRecoveryDialog(message)
+    }
+
+    private fun showRecoveryDialog(message: String) {
+        if (isFinishing || (Build.VERSION.SDK_INT >= 17 && isDestroyed)) return
+        recoveryDialog?.dismiss()
+        recoveryDialog = AlertDialog.Builder(this)
+            .setTitle("Viewer unavailable")
+            .setMessage(message)
+            .setPositiveButton("Reload") { _, _ -> reloadViewer() }
+            .setNeutralButton("Diagnostics") { _, _ -> showDiagnostics() }
+            .setNegativeButton("Close", null)
+            .show()
     }
 
     private fun showDiagnostics() {
@@ -341,6 +349,10 @@ class MainActivity : Activity() {
     }
 
     override fun onDestroy() {
+        webFileChooserCallback?.onReceiveValue(null)
+        webFileChooserCallback = null
+        recoveryDialog?.dismiss()
+        recoveryDialog = null
         webView.removeJavascriptInterface("MolAndroid")
         webView.destroy()
         super.onDestroy()
@@ -367,6 +379,8 @@ class MainActivity : Activity() {
                                 viewerReady = true
                                 viewerBootFailed = false
                                 lastViewerError = null
+                                recoveryDialog?.dismiss()
+                                recoveryDialog = null
                                 flushPendingCommands()
                             }
                             "command-completed" -> {
@@ -378,7 +392,7 @@ class MainActivity : Activity() {
                                 val message = payload?.optString("message") ?: "Viewer startup failed"
                                 viewerBootFailed = true
                                 lastViewerError = message
-                                toast(message)
+                                showRecoveryDialog(message)
                             }
                             "error" -> {
                                 val message = payload?.optString("message") ?: "Viewer error"
@@ -395,11 +409,6 @@ class MainActivity : Activity() {
 
     companion object {
         private const val TAG = "MolstarAndroid"
-        private const val REQUEST_OPEN_FILE = 1001
-        private const val MENU_OPEN_FILE = 1
-        private const val MENU_OPEN_PDB = 2
-        private const val MENU_CLEAR = 3
-        private const val MENU_RELOAD = 4
-        private const val MENU_DIAGNOSTICS = 5
+        private const val REQUEST_WEB_FILE_CHOOSER = 1002
     }
 }
