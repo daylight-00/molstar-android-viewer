@@ -5,6 +5,7 @@
     <application
         android:allowBackup="true"
         android:hardwareAccelerated="true"
+        android:usesCleartextTraffic="false"
         android:label="Mol* Viewer"
         android:supportsRtl="true"
         android:theme="@style/Theme.MolstarAndroidViewer">

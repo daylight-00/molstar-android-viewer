@@ -5,6 +5,7 @@ import android.app.Activity
 import android.app.AlertDialog
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.provider.OpenableColumns
 import android.util.Log
@@ -182,7 +183,12 @@ class MainActivity : Activity() {
     private fun handleIncomingIntent(intent: Intent?) {
         val uri = when (intent?.action) {
             Intent.ACTION_VIEW -> intent.data
-            Intent.ACTION_SEND -> intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
+            Intent.ACTION_SEND -> if (Build.VERSION.SDK_INT >= 33) {
+                intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                intent.getParcelableExtra(Intent.EXTRA_STREAM)
+            }
             else -> null
         }
         uri?.let(::importAndOpen)
