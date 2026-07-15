@@ -10,6 +10,7 @@ The application keeps Mol*'s complete built-in UI. Android handles only platform
 - local structure files through the Storage Access Framework
 - `VIEW` and `SEND` intents
 - PDB ID loading
+- visible startup diagnostics for WebView or Mol* initialization failures
 - an intentionally small JSON bridge for possible future UI integration
 
 The project does not fork Mol* and does not implement molecular rendering natively.
@@ -43,7 +44,7 @@ bash scripts/linux-bootstrap-and-publish.sh
 
 The SDK path can be overridden with `ANDROID_SDK_ROOT`, `ANDROID_HOME`, or `ANDROID_SDK_CANDIDATE`.
 
-Build and fast-forward push to the configured GitHub `origin` by default:
+Build and fast-forward push to the canonical GitHub `origin` (`daylight-00/molstar-android-viewer`) by default:
 
 ```bash
 PUBLISH=1 VISIBILITY=private bash scripts/linux-bootstrap-and-publish.sh
@@ -57,7 +58,7 @@ bash scripts/verify.sh
 
 ## Android runtime smoke test
 
-With exactly one authorized adb device attached to the Linux workstation:
+The adb gate is optional and deferred until the Linux workstation is configured for device access. With exactly one authorized adb device attached:
 
 ```bash
 bash scripts/device/verify-debug-apk.sh
@@ -83,4 +84,5 @@ See:
 - `docs/architecture.md`
 - `docs/linux-handoff.md`
 - `docs/COLLABORATION_PROTOCOL.md`
+- `docs/runtime-troubleshooting.md`
 - `docs/GITHUB_COLLABORATION_WORKFLOW.md`

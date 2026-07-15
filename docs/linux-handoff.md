@@ -34,13 +34,13 @@ Build without publishing:
 PUBLISH=0 bash scripts/linux-bootstrap-and-publish.sh
 ```
 
-Verified builds are fast-forward pushed to the configured `origin/main` by default:
+Verified builds are fast-forward pushed to the canonical `origin/main` by default:
 
 ```bash
 PUBLISH=1 VISIBILITY=private bash scripts/linux-bootstrap-and-publish.sh
 ```
 
-Set `PUBLISH=0` only for an explicitly local gate. The publish path requires `gh auth status`, fetches `origin/main`, rejects divergence, performs a normal push, and reads the remote ref back.
+Set `PUBLISH=0` only for an explicitly local gate. The publish path requires `gh auth status`, creates or resolves `daylight-00/molstar-android-viewer`, migrates a bootstrap bundle remote to `bootstrap-source`, and fetches `origin/main`, rejects divergence, performs a normal push, and reads the remote ref back.
 
 Drive exchange from Linux uses rclone:
 

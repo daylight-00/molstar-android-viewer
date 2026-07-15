@@ -155,7 +155,7 @@ ANDROID_SDK_CANDIDATE
 $HOME/opt/Android
 ```
 
-`PUBLISH=1` is the default for verified runner changes. Before push, the workflow verifies `gh` authentication, fetches `origin/main`, requires the remote head to be an ancestor of the local result, performs only a normal fast-forward push, and reads the remote ref back. Set `PUBLISH=0` only for an explicitly local gate.
+`PUBLISH=1` is the default for verified runner changes. Before push, the workflow verifies `gh` authentication, creates or resolves `daylight-00/molstar-android-viewer`, migrates a bootstrap bundle remote to `bootstrap-source`, and fetches `origin/main`, requires the remote head to be an ancestor of the local result, performs only a normal fast-forward push, and reads the remote ref back. Set `PUBLISH=0` only for an explicitly local gate.
 
 ## Android device boundary
 

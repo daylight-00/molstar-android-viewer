@@ -4,11 +4,13 @@
     let viewer = null;
 
     function emit(type, payload = {}) {
-        const event = JSON.stringify({ type, payload, contractVersion: 1 });
+        const detail = { type, payload, contractVersion: 1 };
+        const event = JSON.stringify(detail);
+        console.info(`[MolApp] ${type}`, payload);
         if (window.MolAndroid && typeof window.MolAndroid.postEvent === 'function') {
             window.MolAndroid.postEvent(event);
         }
-        window.dispatchEvent(new CustomEvent('molapp-event', { detail: { type, payload } }));
+        window.dispatchEvent(new CustomEvent('molapp-event', { detail }));
     }
 
     async function dispatch(command) {
@@ -16,6 +18,7 @@
         const type = command && command.type;
         const payload = (command && command.payload) || {};
 
+        emit('command-started', { type });
         try {
             switch (type) {
                 case 'open-structure':
@@ -55,21 +58,33 @@
         },
     });
 
-    molstar.Viewer.create('app', {
-        layoutIsExpanded: true,
-        layoutShowControls: true,
-        viewportShowExpand: false,
-        pdbProvider: 'rcsb',
-        emdbProvider: 'rcsb',
-        powerPreference: 'high-performance',
-    }).then(instance => {
-        viewer = instance;
-        window.__molstarViewer = instance;
-        emit('ready', { molstarVersion: molstar.version || 'unknown' });
-    }).catch(error => {
-        emit('error', {
-            type: 'initialize',
-            message: error instanceof Error ? error.message : String(error),
+    async function initialize() {
+        if (!window.molstar || !window.molstar.Viewer ||
+            typeof window.molstar.Viewer.create !== 'function') {
+            throw new Error('The bundled Mol* Viewer API did not load');
+        }
+
+        viewer = await window.molstar.Viewer.create('app', {
+            layoutIsExpanded: true,
+            layoutShowControls: true,
+            viewportShowExpand: false,
+            pdbProvider: 'rcsb',
+            emdbProvider: 'rcsb',
+            powerPreference: 'high-performance',
         });
+        window.__molstarViewer = viewer;
+        if (window.MolBoot) window.MolBoot.markReady();
+        emit('ready', { molstarVersion: window.molstar.version || 'unknown' });
+    }
+
+    initialize().catch(error => {
+        const message = error instanceof Error ? error.message : String(error);
+        if (window.MolBoot) {
+            window.MolBoot.fail('boot-error', message, {
+                detail: error instanceof Error ? (error.stack || error.message) : String(error),
+            });
+        } else {
+            emit('boot-error', { message });
+        }
     });
 })();

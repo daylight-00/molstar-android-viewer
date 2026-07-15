@@ -6,4 +6,4 @@ This compatibility entry keeps the familiar filename used by other HW-T reposito
 
 Assistant handoffs follow the single-runner rule: after one manual `rclone copyto`, all checksum, extraction, repository mutation, build, evidence packaging, and result upload steps are executed by the downloaded Bash runner.
 
-Verified runner changes use normal fast-forward publication to `origin/main` by default. Remote divergence, failed `gh` authentication, or a mismatched remote readback stops publication and is preserved in the result archive. Force push is outside the ordinary workflow.
+Verified runner changes create or resolve `daylight-00/molstar-android-viewer`, preserve the original bundle remote as `bootstrap-source`, and use normal fast-forward publication to GitHub `origin/main` by default. Remote divergence, failed `gh` authentication, or a mismatched remote readback stops publication and is preserved in the result archive. Force push is outside the ordinary workflow.

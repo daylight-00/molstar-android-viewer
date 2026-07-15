@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.Intent
+import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -16,6 +17,7 @@ import android.webkit.ConsoleMessage
 import android.webkit.JavascriptInterface
 import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
@@ -32,6 +34,8 @@ class MainActivity : Activity() {
     private lateinit var assetLoader: WebViewAssetLoader
     private lateinit var viewerFilesDir: File
     private var viewerReady = false
+    private var viewerBootFailed = false
+    private var lastViewerError: String? = null
     private val pendingCommands = ArrayDeque<JSONObject>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -54,11 +58,14 @@ class MainActivity : Activity() {
     @SuppressLint("SetJavaScriptEnabled")
     private fun createWebView(savedInstanceState: Bundle?) {
         viewerReady = false
+        viewerBootFailed = false
+        lastViewerError = null
         webView = WebView(this).apply {
             layoutParams = ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT,
             )
+            setBackgroundColor(Color.rgb(16, 20, 24))
             settings.apply {
                 javaScriptEnabled = true
                 domStorageEnabled = true
@@ -93,11 +100,35 @@ class MainActivity : Activity() {
                     return true
                 }
 
+                override fun onPageFinished(view: WebView, url: String) {
+                    Log.d(TAG, "Viewer page loaded: $url")
+                }
+
+                override fun onReceivedError(
+                    view: WebView,
+                    request: WebResourceRequest,
+                    error: WebResourceError,
+                ) {
+                    if (request.isForMainFrame) {
+                        reportHostFailure("WebView load failed: ${error.description}")
+                    }
+                }
+
+                override fun onReceivedHttpError(
+                    view: WebView,
+                    request: WebResourceRequest,
+                    errorResponse: WebResourceResponse,
+                ) {
+                    if (request.isForMainFrame) {
+                        reportHostFailure("Viewer HTTP error: ${errorResponse.statusCode}")
+                    }
+                }
+
                 override fun onRenderProcessGone(
                     view: WebView,
                     detail: RenderProcessGoneDetail,
                 ): Boolean {
-                    Log.e(TAG, "WebView renderer exited; recreating viewer")
+                    reportHostFailure("WebView renderer exited; recreating viewer")
                     (view.parent as? ViewGroup)?.removeView(view)
                     view.destroy()
                     createWebView(null)
@@ -119,6 +150,10 @@ class MainActivity : Activity() {
             .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
         menu.add(Menu.NONE, MENU_CLEAR, Menu.NONE, "Clear")
             .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+        menu.add(Menu.NONE, MENU_RELOAD, Menu.NONE, "Reload viewer")
+            .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+        menu.add(Menu.NONE, MENU_DIAGNOSTICS, Menu.NONE, "Diagnostics")
+            .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
         return true
     }
 
@@ -133,6 +168,14 @@ class MainActivity : Activity() {
         }
         MENU_CLEAR -> {
             dispatch(ViewerContract.clear())
+            true
+        }
+        MENU_RELOAD -> {
+            reloadViewer()
+            true
+        }
+        MENU_DIAGNOSTICS -> {
+            showDiagnostics()
             true
         }
         else -> super.onOptionsItemSelected(item)
@@ -210,8 +253,9 @@ class MainActivity : Activity() {
                 ViewerContract.openStructure(url, format.first, format.second)
             }.onSuccess { command ->
                 runOnUiThread {
+                    val queued = !viewerReady
                     dispatch(command)
-                    toast("Opening structure")
+                    toast(if (queued) "Structure queued while viewer starts" else "Opening structure")
                 }
             }.onFailure { error ->
                 Log.e(TAG, "Failed to import structure", error)
@@ -250,7 +294,45 @@ class MainActivity : Activity() {
     }
 
     private fun flushPendingCommands() {
-        while (pendingCommands.isNotEmpty()) dispatch(pendingCommands.removeFirst())
+        while (viewerReady && pendingCommands.isNotEmpty()) {
+            dispatch(pendingCommands.removeFirst())
+        }
+    }
+
+    private fun reloadViewer() {
+        viewerReady = false
+        viewerBootFailed = false
+        lastViewerError = null
+        webView.reload()
+        toast("Reloading viewer")
+    }
+
+    private fun reportHostFailure(message: String) {
+        viewerBootFailed = true
+        lastViewerError = message
+        Log.e(TAG, message)
+        toast(message)
+    }
+
+    private fun showDiagnostics() {
+        val webViewVersion = if (Build.VERSION.SDK_INT >= 26) {
+            WebView.getCurrentWebViewPackage()?.versionName ?: "unknown"
+        } else {
+            "unavailable below Android 8"
+        }
+        val message = buildString {
+            appendLine("ready=$viewerReady")
+            appendLine("bootFailed=$viewerBootFailed")
+            appendLine("pendingCommands=${pendingCommands.size}")
+            appendLine("url=${webView.url ?: "none"}")
+            appendLine("webView=$webViewVersion")
+            append("lastError=${lastViewerError ?: "none"}")
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Viewer diagnostics")
+            .setMessage(message)
+            .setPositiveButton("OK", null)
+            .show()
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -278,12 +360,31 @@ class MainActivity : Activity() {
             runOnUiThread {
                 runCatching { JSONObject(json) }
                     .onSuccess { event ->
-                        when (event.optString("type")) {
+                        val type = event.optString("type")
+                        val payload = event.optJSONObject("payload")
+                        when (type) {
                             "ready" -> {
                                 viewerReady = true
+                                viewerBootFailed = false
+                                lastViewerError = null
                                 flushPendingCommands()
                             }
-                            "error" -> toast(event.optJSONObject("payload")?.optString("message") ?: "Viewer error")
+                            "command-completed" -> {
+                                if (payload?.optString("type") == "open-structure") {
+                                    toast("Structure loaded")
+                                }
+                            }
+                            "boot-error", "boot-timeout" -> {
+                                val message = payload?.optString("message") ?: "Viewer startup failed"
+                                viewerBootFailed = true
+                                lastViewerError = message
+                                toast(message)
+                            }
+                            "error" -> {
+                                val message = payload?.optString("message") ?: "Viewer error"
+                                lastViewerError = message
+                                toast(message)
+                            }
                         }
                         Log.d(TAG, "Viewer event: $event")
                     }
@@ -298,5 +399,7 @@ class MainActivity : Activity() {
         private const val MENU_OPEN_FILE = 1
         private const val MENU_OPEN_PDB = 2
         private const val MENU_CLEAR = 3
+        private const val MENU_RELOAD = 4
+        private const val MENU_DIAGNOSTICS = 5
     }
 }

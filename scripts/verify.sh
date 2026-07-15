@@ -10,6 +10,7 @@ export ANDROID_SDK_CANDIDATE
 required=(
   app/src/main/assets/viewer/index.html
   app/src/main/assets/viewer/app-bridge.js
+  app/src/main/assets/viewer/boot-diagnostics.js
   app/src/main/assets/viewer/vendor/molstar/molstar.js
   app/src/main/assets/viewer/vendor/molstar/molstar.css
   app/src/main/assets/viewer/vendor/molstar/LICENSE
@@ -17,6 +18,7 @@ required=(
   app/src/main/assets/viewer/vendor/molstar/SHA256SUMS
   scripts/device/fixtures/minimal-ala.pdb
   scripts/device/verify-debug-apk.sh
+  scripts/verify-viewer-shell.mjs
 )
 for path in "${required[@]}"; do
   [[ -s "$path" ]] || { echo "missing or empty: $path" >&2; exit 1; }
@@ -27,6 +29,8 @@ for cmd in node sha256sum grep; do
 done
 
 node --check app/src/main/assets/viewer/app-bridge.js
+node --check app/src/main/assets/viewer/boot-diagnostics.js
+node scripts/verify-viewer-shell.mjs
 bash -n scripts/device/install-debug-apk.sh
 bash -n scripts/device/verify-debug-apk.sh
 bash -n scripts/linux-bootstrap-and-publish.sh

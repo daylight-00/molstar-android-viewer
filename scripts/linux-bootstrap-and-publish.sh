@@ -5,6 +5,9 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 REPO_NAME="${REPO_NAME:-molstar-android-viewer}"
+GITHUB_OWNER="${GITHUB_OWNER:-daylight-00}"
+GITHUB_REPO="${GITHUB_REPO:-$GITHUB_OWNER/$REPO_NAME}"
+GITHUB_REMOTE_URL="${GITHUB_REMOTE_URL:-https://github.com/$GITHUB_REPO.git}"
 VISIBILITY="${VISIBILITY:-private}"
 PUBLISH="${PUBLISH:-1}"
 RUN_VERIFY="${RUN_VERIFY:-1}"
@@ -47,32 +50,60 @@ if [[ "$PUBLISH" == "1" ]]; then
   esac
 
   gh auth status >/dev/null
+  authenticated_login="$(gh api user --jq .login)"
+  [[ "$authenticated_login" == "$GITHUB_OWNER" ]] || {
+    echo "gh is authenticated as $authenticated_login, expected $GITHUB_OWNER" >&2
+    exit 1
+  }
+
   current_branch="$(git branch --show-current)"
   [[ "$current_branch" == "main" ]] || {
     echo "Publishing requires branch main, found: $current_branch" >&2
     exit 1
   }
 
-  if ! git remote get-url origin >/dev/null 2>&1; then
-    gh repo create "$REPO_NAME" "$visibility_flag" --source=. --remote=origin --push
-  else
-    git fetch --prune origin main
-    if git show-ref --verify --quiet refs/remotes/origin/main; then
-      remote_head="$(git rev-parse refs/remotes/origin/main)"
-      git merge-base --is-ancestor "$remote_head" HEAD || {
-        echo "origin/main is not an ancestor of local HEAD; refusing non-fast-forward push" >&2
-        exit 1
-      }
+  if ! gh repo view "$GITHUB_REPO" --json nameWithOwner >/dev/null 2>&1; then
+    gh repo create "$GITHUB_REPO" "$visibility_flag" \
+      --description "Thin Android host for the official Mol* Viewer bundle"
+  fi
+
+  target_url="$GITHUB_REMOTE_URL"
+  if git remote get-url origin >/dev/null 2>&1; then
+    current_origin="$(git remote get-url origin)"
+    if [[ "$current_origin" != "$target_url" ]]; then
+      if git remote get-url bootstrap-source >/dev/null 2>&1; then
+        [[ "$(git remote get-url bootstrap-source)" == "$current_origin" ]] || {
+          echo "bootstrap-source already exists with a different URL" >&2
+          exit 1
+        }
+        git remote remove origin
+      else
+        git remote rename origin bootstrap-source
+      fi
     fi
-    git push --porcelain -u origin HEAD:refs/heads/main
-    pushed_head="$(git ls-remote origin refs/heads/main | awk 'NR == 1 { print $1 }')"
-    [[ "$pushed_head" == "$(git rev-parse HEAD)" ]] || {
-      echo "remote readback does not match local HEAD" >&2
+  fi
+  if git remote get-url origin >/dev/null 2>&1; then
+    git remote set-url origin "$target_url"
+  else
+    git remote add origin "$target_url"
+  fi
+
+  remote_head="$(git ls-remote origin refs/heads/main | awk 'NR == 1 { print $1 }')"
+  if [[ -n "$remote_head" ]]; then
+    git fetch --prune origin main
+    git merge-base --is-ancestor "$remote_head" HEAD || {
+      echo "origin/main is not an ancestor of local HEAD; refusing non-fast-forward push" >&2
       exit 1
     }
   fi
-fi
 
+  git push --porcelain -u origin HEAD:refs/heads/main
+  pushed_head="$(git ls-remote origin refs/heads/main | awk 'NR == 1 { print $1 }')"
+  [[ "$pushed_head" == "$(git rev-parse HEAD)" ]] || {
+    echo "remote readback does not match local HEAD" >&2
+    exit 1
+  }
+fi
 APK="$(find app/build/outputs/apk/debug -maxdepth 1 -type f -name '*.apk' -print -quit 2>/dev/null || true)"
 APK_SHA256=""
 if [[ -n "$APK" ]]; then
