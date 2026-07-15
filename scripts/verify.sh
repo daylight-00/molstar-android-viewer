@@ -15,6 +15,8 @@ required=(
   app/src/main/assets/viewer/vendor/molstar/LICENSE
   app/src/main/assets/viewer/vendor/molstar/VERSION
   app/src/main/assets/viewer/vendor/molstar/SHA256SUMS
+  scripts/device/fixtures/minimal-ala.pdb
+  scripts/device/verify-debug-apk.sh
 )
 for path in "${required[@]}"; do
   [[ -s "$path" ]] || { echo "missing or empty: $path" >&2; exit 1; }
@@ -25,6 +27,10 @@ for cmd in node sha256sum grep; do
 done
 
 node --check app/src/main/assets/viewer/app-bridge.js
+bash -n scripts/device/install-debug-apk.sh
+bash -n scripts/device/verify-debug-apk.sh
+bash -n scripts/linux-bootstrap-and-publish.sh
+bash -n scripts/rclone/push-user-result.sh
 (
   cd app/src/main/assets/viewer/vendor/molstar
   sha256sum -c SHA256SUMS

@@ -133,7 +133,8 @@ The rclone remote defaults to `gdrive` and can be changed with `RCLONE_REMOTE`.
 7. Linux workstation runs static verification and assembleDebug
 8. PASS or FAIL evidence is packaged without being overwritten
 9. Linux uploads the result archive with rclone
-10. assistant retrieves and independently audits it through the Drive connector
+10. verified commits are fast-forward pushed to `origin/main` unless the gate explicitly disables publication
+11. assistant retrieves and independently audits the result through the Drive connector
 ```
 
 A failed build or device run remains evidence.
@@ -154,7 +155,7 @@ ANDROID_SDK_CANDIDATE
 $HOME/opt/Android
 ```
 
-Use `PUBLISH=1` only when the current gate is ready for GitHub publication.
+`PUBLISH=1` is the default for verified runner changes. Before push, the workflow verifies `gh` authentication, fetches `origin/main`, requires the remote head to be an ancestor of the local result, performs only a normal fast-forward push, and reads the remote ref back. Set `PUBLISH=0` only for an explicitly local gate.
 
 ## Android device boundary
 
@@ -164,7 +165,15 @@ The Android device is not a repository or transport node. APK installation is dr
 bash scripts/device/install-debug-apk.sh
 ```
 
-Future runtime-evidence wrappers should invoke adb from Linux, collect outputs into the Linux result root, and then package and upload those outputs with rclone.
+Runtime-evidence wrappers invoke adb from Linux, collect outputs into the Linux result root, and then package and upload those outputs with rclone.
+
+The canonical smoke command is:
+
+```bash
+bash scripts/device/verify-debug-apk.sh
+```
+
+It installs the debug APK, starts the Activity, waits for the JavaScript `ready` event, copies a bounded PDB fixture to public Downloads, grants the Activity read access through an External Storage DocumentsProvider URI, waits for the `open-structure` completion event, rejects viewer error events, and records logcat, screenshot, package state, device properties, current WebView provider, APK hash, and fixture hash.
 
 ## Claim boundary
 

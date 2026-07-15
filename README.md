@@ -43,7 +43,7 @@ bash scripts/linux-bootstrap-and-publish.sh
 
 The SDK path can be overridden with `ANDROID_SDK_ROOT`, `ANDROID_HOME`, or `ANDROID_SDK_CANDIDATE`.
 
-Create and push a private GitHub repository only when requested:
+Build and fast-forward push to the configured GitHub `origin` by default:
 
 ```bash
 PUBLISH=1 VISIBILITY=private bash scripts/linux-bootstrap-and-publish.sh
@@ -55,17 +55,28 @@ PUBLISH=1 VISIBILITY=private bash scripts/linux-bootstrap-and-publish.sh
 bash scripts/verify.sh
 ```
 
+## Android runtime smoke test
+
+With exactly one authorized adb device attached to the Linux workstation:
+
+```bash
+bash scripts/device/verify-debug-apk.sh
+```
+
+The smoke test installs the debug APK, waits for the Mol* `ready` event, sends a local PDB through an Android `ACTION_VIEW` content URI, waits for the `open-structure` completion event, rejects viewer error events, and preserves logcat, screenshot, device, WebView-provider, package, APK, and fixture evidence below `~/Downloads/hw-t-device-results/`.
+
 `VERIFY_BUILD=auto` builds when both the Gradle wrapper and SDK are available. Use `VERIFY_BUILD=always` to require a build or `VERIFY_BUILD=never` for static verification only.
 
 ## Collaboration
 
 - Google Drive carries bounded assistant/user `.tar.zst` packages and complete result archives.
 - The Linux workstation uses `rclone`; the assistant uses the Google Drive connector against the same exchange folders.
-- The Android device is optional runtime evidence only and is accessed from Linux with `adb`.
+- The Android device is runtime evidence only and is accessed from Linux with `adb`; the repository never lives on the device.
 - Termux and rsync are not part of this workflow.
 - Git remains the canonical source and history authority.
 - Assistant changes are delivered as one self-contained Bash runner; only its initial `rclone copyto` is manual.
 - Result uploads are staged below `~/Downloads` before rclone access.
+- Verified runner commits are fast-forward pushed to `origin/main` by default; divergence stops before push.
 
 See:
 

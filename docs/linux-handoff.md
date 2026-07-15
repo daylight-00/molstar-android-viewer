@@ -34,11 +34,13 @@ Build without publishing:
 PUBLISH=0 bash scripts/linux-bootstrap-and-publish.sh
 ```
 
-Create and push a private repository only after verification:
+Verified builds are fast-forward pushed to the configured `origin/main` by default:
 
 ```bash
 PUBLISH=1 VISIBILITY=private bash scripts/linux-bootstrap-and-publish.sh
 ```
+
+Set `PUBLISH=0` only for an explicitly local gate. The publish path requires `gh auth status`, fetches `origin/main`, rejects divergence, performs a normal push, and reads the remote ref back.
 
 Drive exchange from Linux uses rclone:
 
@@ -52,5 +54,13 @@ Install the built APK directly from Linux when needed:
 ```bash
 bash scripts/device/install-debug-apk.sh
 ```
+
+Run the bounded device smoke test with one authorized adb device:
+
+```bash
+bash scripts/device/verify-debug-apk.sh
+```
+
+It verifies the Mol* ready event and a native `ACTION_VIEW` local-PDB import, then preserves complete Linux-side evidence below `~/Downloads/hw-t-device-results/`.
 
 There is no Termux checkout or rsync stage. See `COLLABORATION_PROTOCOL.md` for exact boundaries.

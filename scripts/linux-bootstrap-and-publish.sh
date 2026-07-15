@@ -6,7 +6,7 @@ cd "$ROOT"
 
 REPO_NAME="${REPO_NAME:-molstar-android-viewer}"
 VISIBILITY="${VISIBILITY:-private}"
-PUBLISH="${PUBLISH:-0}"
+PUBLISH="${PUBLISH:-1}"
 RUN_VERIFY="${RUN_VERIFY:-1}"
 ANDROID_SDK_CANDIDATE="${ANDROID_SDK_CANDIDATE:-$HOME/opt/Android}"
 export ANDROID_SDK_CANDIDATE
@@ -46,10 +46,30 @@ if [[ "$PUBLISH" == "1" ]]; then
     *) echo "VISIBILITY must be public, private, or internal" >&2; exit 1 ;;
   esac
 
+  gh auth status >/dev/null
+  current_branch="$(git branch --show-current)"
+  [[ "$current_branch" == "main" ]] || {
+    echo "Publishing requires branch main, found: $current_branch" >&2
+    exit 1
+  }
+
   if ! git remote get-url origin >/dev/null 2>&1; then
     gh repo create "$REPO_NAME" "$visibility_flag" --source=. --remote=origin --push
   else
-    git push -u origin HEAD
+    git fetch --prune origin main
+    if git show-ref --verify --quiet refs/remotes/origin/main; then
+      remote_head="$(git rev-parse refs/remotes/origin/main)"
+      git merge-base --is-ancestor "$remote_head" HEAD || {
+        echo "origin/main is not an ancestor of local HEAD; refusing non-fast-forward push" >&2
+        exit 1
+      }
+    fi
+    git push --porcelain -u origin HEAD:refs/heads/main
+    pushed_head="$(git ls-remote origin refs/heads/main | awk 'NR == 1 { print $1 }')"
+    [[ "$pushed_head" == "$(git rev-parse HEAD)" ]] || {
+      echo "remote readback does not match local HEAD" >&2
+      exit 1
+    }
   fi
 fi
 
