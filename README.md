@@ -64,6 +64,8 @@ bash scripts/verify.sh
 - The Android device is optional runtime evidence only and is accessed from Linux with `adb`.
 - Termux and rsync are not part of this workflow.
 - Git remains the canonical source and history authority.
+- Assistant changes are delivered as one self-contained Bash runner; only its initial `rclone copyto` is manual.
+- Result uploads are staged below `~/Downloads` before rclone access.
 
 See:
 

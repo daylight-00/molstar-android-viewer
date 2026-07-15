@@ -58,17 +58,49 @@ Existing user-authored history is preserved. History is not rewritten without an
 
 ## Drive and rclone exchange
 
-Assistant-to-user and user-to-assistant exchanges use one `.tar.zst` per direction whenever practical.
-
-Assistant-to-user packages normally contain:
+The assistant and owner exchange bounded packages through these folders:
 
 ```text
-patch or bundle
-manifest and SHA-256 inventory
-expected base HEAD/tree
-one APPLY_AND_RUN.sh wrapper
-rollback or backup instructions
+HW-T/molstar-android-viewer/exchange/agent-to-user
+HW-T/molstar-android-viewer/exchange/user-to-agent
 ```
+
+The assistant uses the Google Drive connector. The Linux workstation uses `rclone`. Transport never passes through Termux or the Android filesystem.
+
+### Single-runner handoff rule
+
+For an assistant-to-user change, the only manual transport step is the first `rclone` download. The assistant uploads one self-contained Bash runner to `agent-to-user`. The runner embeds its patch or package payload, or fetches any companion objects itself.
+
+The normal owner interaction is one compound command of this form:
+
+```bash
+rclone copyto \
+  gdrive:HW-T/molstar-android-viewer/exchange/agent-to-user/<RUNNER>.sh \
+  "$HOME/Downloads/<RUNNER>.sh" \
+  --checksum && \
+bash "$HOME/Downloads/<RUNNER>.sh"
+```
+
+Do not require separate manual checksum, extraction, directory-change, patch, Gradle, Git, result-packaging, or result-upload commands when they can be performed by the runner.
+
+Each runner should, where applicable:
+
+```text
+verify its embedded manifest and payload hashes
+verify expected branch, HEAD, tree, and clean worktree
+set the approved global and repository-local Git identity
+create a complete pre-change safety bundle
+apply the bounded change and verify the resulting tree
+run static verification and the required Android build
+commit only after successful verification when the gate permits it
+create a post-change bundle containing the resulting commit object
+package complete PASS-or-FAIL logs and an exact result index
+stage outgoing files below ~/Downloads before invoking rclone
+upload the result archive and checksum to user-to-agent
+print one final machine-readable status block
+```
+
+The first manual `rclone` download is the only routine exception to the single-runner rule.
 
 User-to-assistant result packages normally contain:
 
@@ -78,24 +110,16 @@ raw return codes
 pre/post HEAD and tree
 build APK and SHA-256 when produced
 machine-readable result index
-safety bundle metadata
+pre-change and post-change Git bundles
 ```
 
-The assistant uses the Google Drive connector. The Linux workstation uses rclone against the same folders:
-
-```text
-HW-T/molstar-android-viewer/exchange/agent-to-user
-HW-T/molstar-android-viewer/exchange/user-to-agent
-```
-
-Default helper commands:
+The default result helper stages any source archive under `~/Downloads/hw-t-rclone-staging/molstar-android-viewer` before upload. This avoids confinement failures when `rclone` cannot read hidden paths such as `~/.cache`.
 
 ```bash
-bash scripts/rclone/pull-agent-packages.sh
 bash scripts/rclone/push-user-result.sh /path/to/result.tar.zst
 ```
 
-The rclone remote defaults to `gdrive` and can be changed with `RCLONE_REMOTE`. This transport does not pass through Termux or the Android filesystem.
+The rclone remote defaults to `gdrive` and can be changed with `RCLONE_REMOTE`.
 
 ## Standard bounded change
 

@@ -3,3 +3,5 @@
 The active workflow is defined in [`COLLABORATION_PROTOCOL.md`](COLLABORATION_PROTOCOL.md).
 
 This compatibility entry keeps the familiar filename used by other HW-T repositories. The Linux workstation is the only checkout/build/transport host. The Android device is accessed through adb only when runtime validation is required; Termux is not part of this project workflow.
+
+Assistant handoffs follow the single-runner rule: after one manual `rclone copyto`, all checksum, extraction, repository mutation, build, evidence packaging, and result upload steps are executed by the downloaded Bash runner.
