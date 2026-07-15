@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.MolstarAndroidViewer" parent="android:style/Theme.Material.Light">
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:windowNoTitle">false</item>
+        <item name="android:colorAccent">#455A64</item>
+        <item name="android:navigationBarColor">#101418</item>
+        <item name="android:statusBarColor">#101418</item>
+    </style>
+</resources>
