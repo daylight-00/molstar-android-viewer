@@ -65,7 +65,8 @@ class MainActivity : Activity() {
         applySystemBarInsets(rootView)
         rootView.requestApplyInsets()
 
-        viewerFilesDir = File(cacheDir, "molstar-native-files").apply { mkdirs() }
+        viewerFilesDir = File(cacheDir, "molstar-native-files")
+        resetNativeFileTransportDirectory()
         assetLoader = WebViewAssetLoader.Builder()
             .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(this))
             .addPathHandler(
@@ -326,6 +327,15 @@ class MainActivity : Activity() {
                 runOnUiThread { toast(error.message ?: "Failed to open files") }
             }
         }.start()
+    }
+
+    private fun resetNativeFileTransportDirectory() {
+        if (viewerFilesDir.exists() && !viewerFilesDir.deleteRecursively()) {
+            Log.w(TAG, "Could not fully clear stale native file transport data")
+        }
+        require(viewerFilesDir.mkdirs() || viewerFilesDir.isDirectory) {
+            "Cannot initialize native file transport directory"
+        }
     }
 
     private fun queryDisplayName(uri: Uri): String? {

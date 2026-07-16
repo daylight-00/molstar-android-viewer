@@ -4,11 +4,13 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 VERIFY_BUILD="${VERIFY_BUILD:-auto}"
+VERIFY_VARIANT="${VERIFY_VARIANT:-CandidateDebug}"
 ANDROID_SDK_CANDIDATE="${ANDROID_SDK_CANDIDATE:-$HOME/opt/Android}"
 export ANDROID_SDK_CANDIDATE
 
 required=(
   .nvmrc
+  version.properties
   app/src/main/assets/viewer/index.html
   app/src/main/assets/viewer/app-bridge.js
   app/src/main/assets/viewer/customization.js
@@ -22,10 +24,24 @@ required=(
   app/src/main/assets/viewer/vendor/molstar/UPSTREAM.json
   app/src/main/assets/viewer/vendor/molstar/SHA256SUMS
   scripts/device/fixtures/minimal-ala.pdb
+  scripts/device/verify-apk.sh
   scripts/device/verify-debug-apk.sh
+  scripts/device/verify-candidate-apk.sh
   scripts/lib/node-env.sh
+  scripts/lib/android-env.sh
+  scripts/lib/signing-env.sh
   scripts/verify-viewer-shell.mjs
   scripts/verify-native-file-bridge.mjs
+  scripts/verify-automation-contract.mjs
+  scripts/ci/build-channel.sh
+  scripts/ci/verify-artifact.mjs
+  scripts/ci/simulate-actions.sh
+  scripts/automation/check-molstar-update.mjs
+  scripts/automation/verify-update-scope.sh
+  scripts/automation/prepare-molstar-update.sh
+  scripts/release/prepare-release.sh
+  docs/automation-readiness.md
+  docs/signing-and-release.md
 )
 for path in "${required[@]}"; do
   [[ -s "$path" ]] || { echo "missing or empty: $path" >&2; exit 1; }
@@ -35,7 +51,7 @@ done
 source "$ROOT/scripts/lib/node-env.sh"
 require_node_lts "$ROOT"
 
-for cmd in sha256sum grep diff find sort; do
+for cmd in sha256sum grep diff find sort unzip; do
   command -v "$cmd" >/dev/null || { echo "missing command: $cmd" >&2; exit 1; }
 done
 
@@ -45,12 +61,27 @@ node --check app/src/main/assets/viewer/boot-diagnostics.js
 node --check app/src/main/assets/viewer/theme-controller.js
 node scripts/verify-viewer-shell.mjs
 node scripts/verify-native-file-bridge.mjs
-bash -n scripts/lib/node-env.sh
-bash -n scripts/sync-molstar-assets.sh
-bash -n scripts/device/install-debug-apk.sh
-bash -n scripts/device/verify-debug-apk.sh
-bash -n scripts/linux-bootstrap-and-publish.sh
-bash -n scripts/rclone/push-user-result.sh
+node scripts/verify-automation-contract.mjs
+node --check scripts/ci/verify-artifact.mjs
+node --check scripts/automation/check-molstar-update.mjs
+for script in \
+  scripts/lib/node-env.sh \
+  scripts/lib/android-env.sh \
+  scripts/lib/signing-env.sh \
+  scripts/sync-molstar-assets.sh \
+  scripts/device/install-debug-apk.sh \
+  scripts/device/verify-apk.sh \
+  scripts/device/verify-debug-apk.sh \
+  scripts/device/verify-candidate-apk.sh \
+  scripts/ci/build-channel.sh \
+  scripts/ci/simulate-actions.sh \
+  scripts/automation/verify-update-scope.sh \
+  scripts/automation/prepare-molstar-update.sh \
+  scripts/release/prepare-release.sh \
+  scripts/linux-bootstrap-and-publish.sh \
+  scripts/rclone/push-user-result.sh; do
+  bash -n "$script"
+done
 (
   cd app/src/main/assets/viewer/vendor/molstar
   sha256sum -c SHA256SUMS
@@ -65,6 +96,7 @@ bash -n scripts/rclone/push-user-result.sh
 MAIN=app/src/main/java/io/github/daylight00/molstarandroid/MainActivity.kt
 CONTRACT=app/src/main/java/io/github/daylight00/molstarandroid/ViewerContract.kt
 MANIFEST=app/src/main/AndroidManifest.xml
+BUILD=app/build.gradle.kts
 BRIDGE=app/src/main/assets/viewer/app-bridge.js
 CUSTOM=app/src/main/assets/viewer/customization.js
 
@@ -81,9 +113,15 @@ grep -q 'getSystemTheme' "$MAIN"
 grep -q 'onConfigurationChanged' "$MAIN"
 grep -q 'Intent.ACTION_SEND_MULTIPLE' "$MAIN"
 grep -q 'ViewerContract.openFiles' "$MAIN"
+grep -q 'resetNativeFileTransportDirectory' "$MAIN"
 grep -q 'fun openFiles' "$CONTRACT"
+grep -q 'fun openAlphaFold' "$CONTRACT"
 grep -q 'layoutShowLog: false' "$CUSTOM"
 grep -q 'android.intent.action.SEND_MULTIPLE' "$MANIFEST"
+grep -q 'android:label="${appLabel}"' "$MANIFEST"
+grep -q 'create("stable")' "$BUILD"
+grep -q 'create("candidate")' "$BUILD"
+grep -q 'applicationIdSuffix = ".candidate"' "$BUILD"
 
 if grep -Eq 'GZIPInputStream|detectStructureFile|inferFormat|lammps_traj_data|chemical/x-' "$MAIN" "$MANIFEST"; then
   echo 'Android integration must not duplicate Mol* format recognition or decompression' >&2
@@ -102,19 +140,19 @@ if grep -q 'onCreateOptionsMenu' "$MAIN"; then
   echo 'persistent Android options menu must remain absent' >&2
   exit 1
 fi
+if find . -path './.git' -prune -o -type f \( -name '*.jks' -o -name '*.keystore' \) -print | grep -q .; then
+  echo 'keystore files must not be tracked or stored in the repository' >&2
+  exit 1
+fi
 
 do_build=0
 case "$VERIFY_BUILD" in
-  never)
-    do_build=0
-    ;;
+  never) do_build=0 ;;
   auto)
     if [[ -x ./gradlew ]]; then
       # shellcheck source=scripts/lib/android-env.sh
       source "$ROOT/scripts/lib/android-env.sh"
-      if resolve_android_sdk "$ROOT"; then
-        do_build=1
-      fi
+      if resolve_android_sdk "$ROOT"; then do_build=1; fi
     fi
     ;;
   always)
@@ -124,16 +162,22 @@ case "$VERIFY_BUILD" in
     resolve_android_sdk "$ROOT"
     do_build=1
     ;;
-  *)
-    echo "VERIFY_BUILD must be auto, always, or never" >&2
-    exit 1
-    ;;
+  *) echo "VERIFY_BUILD must be auto, always, or never" >&2; exit 1 ;;
+esac
+
+case "$VERIFY_VARIANT" in
+  StableDebug) variant_path=stable/debug ;;
+  StableRelease) variant_path=stable/release ;;
+  CandidateDebug) variant_path=candidate/debug ;;
+  CandidateRelease) variant_path=candidate/release ;;
+  *) echo "VERIFY_VARIANT must be StableDebug, StableRelease, CandidateDebug, or CandidateRelease" >&2; exit 1 ;;
 esac
 
 if [[ "$do_build" == "1" ]]; then
-  ./gradlew --no-daemon :app:assembleDebug
-  APK="$(find app/build/outputs/apk/debug -maxdepth 1 -type f -name '*.apk' -print -quit)"
-  [[ -n "$APK" && -s "$APK" ]] || { echo "debug APK was not produced" >&2; exit 1; }
+  ./gradlew --no-daemon ":app:assemble$VERIFY_VARIANT"
+  APK="$(find "app/build/outputs/apk/$variant_path" -maxdepth 1 -type f -name '*.apk' -print -quit 2>/dev/null || true)"
+  [[ -n "$APK" && -s "$APK" ]] || { echo "$VERIFY_VARIANT APK was not produced" >&2; exit 1; }
+  unzip -t "$APK" >/dev/null
   echo "Android build passed: $APK"
   sha256sum "$APK"
 else

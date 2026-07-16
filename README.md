@@ -93,6 +93,21 @@ bash scripts/verify.sh
 
 The vendor runtime is replaced as a unit. Compatibility is intentionally concentrated in `app-bridge.js` so routine Mol* releases do not require changes to Android platform code.
 
+
+## Pre-Actions release pipeline
+
+The repository contains the complete build/update/release logic that future GitHub Actions workflows will call. Stable and candidate are separate product flavors, release signing and versioning are environment-driven, Mol* automation is restricted to the upstream vendor directory, and every APK is staged with a machine-readable manifest and SHA-256 checksums.
+
+```bash
+# Exercise the entire future CI path with an ephemeral signing key.
+bash scripts/ci/simulate-actions.sh
+
+# Build a local candidate debug APK.
+bash scripts/ci/build-channel.sh candidate debug
+```
+
+Actual workflow YAML, repository secrets, tags, and GitHub Release publication are intentionally deferred. See `docs/automation-readiness.md` and `docs/signing-and-release.md`.
+
 ## Android runtime smoke test
 
 With exactly one authorized adb device attached:

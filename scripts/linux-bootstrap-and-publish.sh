@@ -41,7 +41,7 @@ source "$ROOT/scripts/lib/android-env.sh"
 resolve_android_sdk "$ROOT"
 
 if [[ "$RUN_VERIFY" == "1" ]]; then
-  VERIFY_BUILD=always "$ROOT/scripts/verify.sh"
+  VERIFY_BUILD=always VERIFY_VARIANT=CandidateDebug "$ROOT/scripts/verify.sh"
 fi
 
 if [[ "$PUBLISH" == "1" ]]; then
@@ -108,7 +108,7 @@ if [[ "$PUBLISH" == "1" ]]; then
     exit 1
   }
 fi
-APK="$(find app/build/outputs/apk/debug -maxdepth 1 -type f -name '*.apk' -print -quit 2>/dev/null || true)"
+APK="$(find app/build/outputs/apk/candidate/debug -maxdepth 1 -type f -name '*.apk' -print -quit 2>/dev/null || true)"
 APK_SHA256=""
 if [[ -n "$APK" ]]; then
   APK_SHA256="$(sha256sum "$APK" | awk '{print $1}')"

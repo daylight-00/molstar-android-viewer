@@ -27,3 +27,19 @@ resolve_android_sdk() {
   escaped="${escaped// /\\ }"
   printf 'sdk.dir=%s\n' "$escaped" > "$repo_root/local.properties"
 }
+
+
+resolve_android_build_tool() {
+  local tool_name="${1:?Android build tool name is required}"
+  local tool_path
+  [[ -n "${ANDROID_SDK_ROOT:-}" ]] || {
+    echo "resolve_android_sdk must be called before resolve_android_build_tool" >&2
+    return 1
+  }
+  tool_path="$(find "$ANDROID_SDK_ROOT/build-tools" -mindepth 2 -maxdepth 2 -type f -name "$tool_name" -print 2>/dev/null | sort -V | tail -n 1)"
+  [[ -n "$tool_path" && -x "$tool_path" ]] || {
+    printf 'Android build tool not found: %s\n' "$tool_name" >&2
+    return 1
+  }
+  printf '%s\n' "$tool_path"
+}

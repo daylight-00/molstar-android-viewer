@@ -33,6 +33,9 @@ object ViewerContract {
     fun openPdb(id: String): JSONObject =
         command("open-pdb", JSONObject().put("id", id.trim().uppercase()))
 
+    fun openAlphaFold(id: String): JSONObject =
+        command("open-alphafold", JSONObject().put("id", id.trim().uppercase()))
+
     fun clear(): JSONObject = command("clear", JSONObject())
 
     private fun command(type: String, payload: JSONObject): JSONObject =
