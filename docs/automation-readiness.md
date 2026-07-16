@@ -1,80 +1,84 @@
-# Automation and release readiness
+# GitHub Actions and release automation
 
-This repository is prepared so that GitHub Actions can remain a thin orchestration layer. The workflow YAML files and GitHub Release publication are intentionally not present yet.
+The repository now contains the complete unattended update and CI release path. Workflow YAML is intentionally thin: Android, update, signing, artifact, and release logic remains in repository-owned scripts that can be reproduced on the canonical Linux workstation.
+
+## Workflows
+
+| Workflow | Trigger | Permission boundary | Result |
+|---|---|---|---|
+| `ci.yml` | push, pull request, manual | `contents: read` | verifies the repository and uploads a candidate-debug artifact |
+| `molstar-update.yml` | weekly schedule, manual | `contents: write`, `pull-requests: write` | replaces Layer 1 only, builds a signed candidate, pushes a version branch, opens a PR |
+| `promote.yml` | manual only | `contents: write` | verifies the device-approved commit, builds stable, and publishes a GitHub Release |
+
+The update workflow uses one branch per target Molstar version, for example `automation/molstar-5.11.0`. It never force-pushes. If the target branch already exists, the workflow reports the existing candidate instead of rewriting it.
 
 ## Channels
 
 | Channel | Application ID | Purpose |
 |---|---|---|
 | stable release | `io.github.daylight00.molstarandroid` | last device-approved build |
-| candidate release | `io.github.daylight00.molstarandroid.candidate` | automated upstream candidate installed beside stable |
-| candidate debug | `io.github.daylight00.molstarandroid.candidate.debug` | local development and smoke testing |
+| candidate release | `io.github.daylight00.molstarandroid.candidate` | signed upstream candidate installed beside stable |
+| candidate debug | `io.github.daylight00.molstarandroid.candidate.debug` | ordinary push/PR CI and local smoke testing |
 
-The stable and candidate release variants use the same optional sideload signing contract. Candidate is isolated by application ID, so it cannot overwrite stable.
-
-## Canonical inputs
-
-The host version is tracked in `version.properties`; the Mol* version is tracked in the vendored `VERSION` file. CI may override Android package versioning with:
-
-```text
-MOLSTAR_ANDROID_VERSION_CODE
-MOLSTAR_ANDROID_VERSION_NAME
-```
-
-Release signing is supplied only through environment variables or same-named Gradle properties:
-
-```text
-MOLSTAR_ANDROID_KEYSTORE_FILE
-MOLSTAR_ANDROID_KEYSTORE_PASSWORD
-MOLSTAR_ANDROID_KEY_ALIAS
-MOLSTAR_ANDROID_KEY_PASSWORD
-```
-
-The keystore and passwords are never committed. A release script rejects incomplete signing input and verifies the resulting APK signature.
-
-## Action entry points
-
-A future workflow should only orchestrate these repository-owned commands:
+## Repository-owned entry points
 
 ```bash
-# Pull-request and push CI
-VERIFY_BUILD=always VERIFY_VARIANT=CandidateDebug bash scripts/verify.sh
+# Push/PR CI artifact
+ARTIFACT_OUTPUT_DIR=artifacts/ci-candidate-debug \
+  bash scripts/ci/build-channel.sh candidate debug
 
-# Build one bounded artifact directory
-ARTIFACT_OUTPUT_DIR="$RUNNER_TEMP/candidate" \
-  bash scripts/ci/build-channel.sh candidate release
-
-# Scheduled upstream preparation on a bot branch
-UPDATE_BUILD_TYPE=release UPDATE_OUTPUT_DIR="$RUNNER_TEMP/update" \
+# Weekly upstream preparation
+UPDATE_BUILD_TYPE=release UPDATE_OUTPUT_DIR=artifacts/molstar-update \
   bash scripts/automation/prepare-molstar-update.sh latest
 
-# Device-approved stable release preparation
-MOLSTAR_ANDROID_VERSION_CODE=<monotonic integer> \
-RELEASE_OUTPUT_DIR="$RUNNER_TEMP/release" \
+# Device-approved stable artifact
+RELEASE_OUTPUT_DIR=artifacts/release \
   bash scripts/release/prepare-release.sh
+
+# GitHub Release publication or local publication dry-run
+PUBLISH_DRY_RUN=1 \
+  bash scripts/release/publish-github-release.sh artifacts/release/release-manifest.json
 ```
 
-`prepare-molstar-update.sh` may modify only `app/src/main/assets/viewer/vendor/molstar/**`. The scope gate rejects changes to Android integration, bridge, theme, or customization files. It emits a candidate artifact and a machine-readable update report but does not commit, push, or create a pull request.
+`prepare-molstar-update.sh` may modify only `app/src/main/assets/viewer/vendor/molstar/**`. Any change to Android integration, the JavaScript bridge, theme handling, customization, build logic, or workflow logic fails the scope gate.
 
-`prepare-release.sh` requires a clean `main`, explicit monotonic `versionCode`, complete signing input, a signed stable APK, and an artifact manifest. It emits release notes and a release manifest but does not create a tag or GitHub Release.
+## Version policy
+
+`version.properties` and the vendored Molstar `VERSION` are the canonical names. No CI script contains a hard-coded host version string.
+
+GitHub run numbers are mapped into disjoint Android version-code bands:
+
+```text
+stable:    1,000,000,000 + promote workflow run number
+candidate: 1,100,000,000 + update workflow run number
+simulation: 900,000,000 + HOST_VERSION_CODE
+```
+
+The real stable band is above all previous simulation builds, while remaining below Android's maximum version code. Candidate uses a separate application ID and its own band.
 
 ## Local Actions simulation
-
-The full build/sign/stage path can be exercised without a permanent key:
 
 ```bash
 bash scripts/ci/simulate-actions.sh
 ```
 
-The simulation creates an ephemeral two-day keystore, builds signed candidate and stable release APKs, verifies manifests and signatures, tests the Layer 1 update-scope gate, then deletes the temporary key. It proves pipeline behavior but cannot prove that the real long-lived signing key is safely backed up.
+The simulation creates an ephemeral two-day keystore, builds signed candidate and stable APKs, verifies manifests and signatures, checks the update boundary, and performs a dry-run of GitHub Release publication. The generated version name is derived from `version.properties`, so host version bumps cannot leave CI artifact names behind.
 
-## Remaining work
+## Initial activation
 
-The next stage is limited to:
+One permanent signing identity is still an external prerequisite. Configure it once from the canonical Linux workstation:
 
-1. create and offline-backup the permanent sideload keystore;
-2. add its encoded bytes and passwords as GitHub repository secrets;
-3. add workflow YAML that calls the scripts above;
-4. configure artifact retention, bot branch/PR updates, manual promotion, tags, and GitHub Releases.
+```bash
+bash scripts/release/configure-github-signing.sh
+```
 
-No application architecture change should be required for that stage.
+The script creates or reuses the offline keystore and sets these encrypted repository secrets:
+
+```text
+ANDROID_KEYSTORE_BASE64
+ANDROID_KEYSTORE_PASSWORD
+ANDROID_KEY_ALIAS
+ANDROID_KEY_PASSWORD
+```
+
+After the secrets exist, the scheduled update workflow can publish signed candidates. Stable release remains intentionally manual and requires the exact full SHA that was installed and approved on a real Android device.

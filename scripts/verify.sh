@@ -30,16 +30,24 @@ required=(
   scripts/lib/node-env.sh
   scripts/lib/android-env.sh
   scripts/lib/signing-env.sh
+  scripts/lib/version-env.sh
   scripts/verify-viewer-shell.mjs
   scripts/verify-native-file-bridge.mjs
   scripts/verify-automation-contract.mjs
   scripts/ci/build-channel.sh
+  scripts/ci/ensure-android-sdk.sh
+  scripts/ci/github-version-env.sh
   scripts/ci/verify-artifact.mjs
   scripts/ci/simulate-actions.sh
   scripts/automation/check-molstar-update.mjs
   scripts/automation/verify-update-scope.sh
   scripts/automation/prepare-molstar-update.sh
   scripts/release/prepare-release.sh
+  scripts/release/publish-github-release.sh
+  scripts/release/configure-github-signing.sh
+  .github/workflows/ci.yml
+  .github/workflows/molstar-update.yml
+  .github/workflows/promote.yml
   docs/automation-readiness.md
   docs/signing-and-release.md
 )
@@ -68,16 +76,21 @@ for script in \
   scripts/lib/node-env.sh \
   scripts/lib/android-env.sh \
   scripts/lib/signing-env.sh \
+  scripts/lib/version-env.sh \
   scripts/sync-molstar-assets.sh \
   scripts/device/install-debug-apk.sh \
   scripts/device/verify-apk.sh \
   scripts/device/verify-debug-apk.sh \
   scripts/device/verify-candidate-apk.sh \
   scripts/ci/build-channel.sh \
+  scripts/ci/ensure-android-sdk.sh \
+  scripts/ci/github-version-env.sh \
   scripts/ci/simulate-actions.sh \
   scripts/automation/verify-update-scope.sh \
   scripts/automation/prepare-molstar-update.sh \
   scripts/release/prepare-release.sh \
+  scripts/release/publish-github-release.sh \
+  scripts/release/configure-github-signing.sh \
   scripts/linux-bootstrap-and-publish.sh \
   scripts/rclone/push-user-result.sh; do
   bash -n "$script"
@@ -132,6 +145,16 @@ grep -q 'android:label="${appLabel}"' "$MANIFEST"
 grep -q 'create("stable")' "$BUILD"
 grep -q 'create("candidate")' "$BUILD"
 grep -q 'applicationIdSuffix = ".candidate"' "$BUILD"
+
+for workflow in .github/workflows/ci.yml .github/workflows/molstar-update.yml .github/workflows/promote.yml; do
+  grep -q '^name:' "$workflow"
+  grep -q '^on:' "$workflow"
+  grep -q '^permissions:' "$workflow"
+  if grep -q $'\t' "$workflow"; then
+    echo "workflow YAML must not contain tabs: $workflow" >&2
+    exit 1
+  fi
+done
 
 if grep -Eq 'GZIPInputStream|detectStructureFile|inferFormat|lammps_traj_data|chemical/x-' "$MAIN" "$MANIFEST"; then
   echo 'Android integration must not duplicate Mol* format recognition or decompression' >&2

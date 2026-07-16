@@ -1,0 +1,98 @@
+name: Promote stable release
+
+on:
+  workflow_dispatch:
+    inputs:
+      approved_commit:
+        description: Full commit SHA of the candidate installed and approved on a real device
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: stable-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: stable-release
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Verify human-approved commit
+        env:
+          APPROVED_COMMIT: ${{ inputs.approved_commit }}
+        run: |
+          [[ "$APPROVED_COMMIT" =~ ^[0-9a-f]{40}$ ]] || { echo 'approved_commit must be a full lowercase SHA' >&2; exit 1; }
+          actual="$(git rev-parse HEAD)"
+          [[ "$actual" == "$APPROVED_COMMIT" ]] || {
+            echo "main is $actual but the approved device candidate was $APPROVED_COMMIT" >&2
+            exit 1
+          }
+          git checkout -B main "$actual"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Ensure Android SDK
+        run: bash scripts/ci/ensure-android-sdk.sh
+
+      - name: Configure permanent signing identity
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          for name in KEYSTORE_BASE64 KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
+            [[ -n "${!name}" ]] || { echo "Missing signing secret: $name" >&2; exit 1; }
+          done
+          keystore="$RUNNER_TEMP/sideload.jks"
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$keystore"
+          chmod 600 "$keystore"
+          {
+            echo "MOLSTAR_ANDROID_KEYSTORE_FILE=$keystore"
+            echo "MOLSTAR_ANDROID_KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD"
+            echo "MOLSTAR_ANDROID_KEY_ALIAS=$KEY_ALIAS"
+            echo "MOLSTAR_ANDROID_KEY_PASSWORD=$KEY_PASSWORD"
+          } >> "$GITHUB_ENV"
+
+      - name: Derive stable package version
+        run: bash scripts/ci/github-version-env.sh stable "$GITHUB_RUN_NUMBER" >> "$GITHUB_ENV"
+
+      - name: Prepare signed stable release
+        env:
+          RELEASE_OUTPUT_DIR: ${{ runner.temp }}/release
+        run: bash scripts/release/prepare-release.sh
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_OUTPUT_DIR: ${{ runner.temp }}/release
+        run: bash scripts/release/publish-github-release.sh "$RELEASE_OUTPUT_DIR/release-manifest.json"
+
+      - name: Preserve release evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: stable-release-${{ github.sha }}
+          path: ${{ runner.temp }}/release/
+          if-no-files-found: warn
+          retention-days: 90

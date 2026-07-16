@@ -9,6 +9,9 @@ cleanup() { rm -rf "$TMP"; }
 trap cleanup EXIT
 
 for cmd in keytool git; do command -v "$cmd" >/dev/null || { echo "missing command: $cmd" >&2; exit 1; }; done
+# shellcheck source=scripts/lib/version-env.sh
+source "$ROOT/scripts/lib/version-env.sh"
+load_project_versions "$ROOT"
 [[ -z "$(git status --porcelain)" ]] || { echo "CI simulation requires a clean worktree" >&2; exit 1; }
 
 KEYSTORE="$TMP/ephemeral-ci.jks"
@@ -21,8 +24,8 @@ export MOLSTAR_ANDROID_KEYSTORE_FILE="$KEYSTORE"
 export MOLSTAR_ANDROID_KEYSTORE_PASSWORD="$PASSWORD"
 export MOLSTAR_ANDROID_KEY_ALIAS="ephemeral-ci"
 export MOLSTAR_ANDROID_KEY_PASSWORD="$PASSWORD"
-export MOLSTAR_ANDROID_VERSION_CODE="${MOLSTAR_ANDROID_VERSION_CODE:-900000007}"
-export MOLSTAR_ANDROID_VERSION_NAME="${MOLSTAR_ANDROID_VERSION_NAME:-0.2.0-ci.$(git rev-parse --short=12 HEAD)}"
+export MOLSTAR_ANDROID_VERSION_CODE="${MOLSTAR_ANDROID_VERSION_CODE:-$((900000000 + HOST_VERSION_CODE))}"
+export MOLSTAR_ANDROID_VERSION_NAME="${MOLSTAR_ANDROID_VERSION_NAME:-$HOST_VERSION_NAME-ci.$(git rev-parse --short=12 HEAD)}"
 
 rm -rf "$SIM_OUTPUT_DIR"
 mkdir -p "$SIM_OUTPUT_DIR"
@@ -31,6 +34,8 @@ ARTIFACT_OUTPUT_DIR="$SIM_OUTPUT_DIR/candidate" SKIP_VERIFY=1 \
   bash scripts/ci/build-channel.sh candidate release
 RELEASE_OUTPUT_DIR="$SIM_OUTPUT_DIR/release" RELEASE_REQUIRE_MAIN=0 \
   bash scripts/release/prepare-release.sh
+PUBLISH_DRY_RUN=1 bash scripts/release/publish-github-release.sh \
+  "$SIM_OUTPUT_DIR/release/release-manifest.json"
 
 CURRENT_VERSION="$(tr -d '[:space:]' < app/src/main/assets/viewer/vendor/molstar/VERSION)"
 node scripts/automation/check-molstar-update.mjs --target "$CURRENT_VERSION" \
@@ -63,5 +68,6 @@ NODE_VERSION=$(node --version)
 NPM_VERSION=$(npm --version)
 CANDIDATE_MANIFEST=$SIM_OUTPUT_DIR/candidate/artifact-manifest.json
 RELEASE_MANIFEST=$SIM_OUTPUT_DIR/release/release-manifest.json
+PUBLISH_PLAN=$SIM_OUTPUT_DIR/release/publish-plan.json
 SCOPE_GATE=passed
 STATUS

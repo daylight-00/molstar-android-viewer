@@ -1,0 +1,177 @@
+name: Molstar update candidate
+
+on:
+  schedule:
+    - cron: '17 3 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: molstar-update-candidate
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+
+      - name: Check latest Molstar version
+        id: check
+        run: |
+          output="$RUNNER_TEMP/update-check.json"
+          node scripts/automation/check-molstar-update.mjs --output "$output" >/dev/null
+          node --input-type=module - "$output" "$GITHUB_OUTPUT" <<'NODE'
+          import fs from 'node:fs';
+          const [input, output] = process.argv.slice(2);
+          const value = JSON.parse(fs.readFileSync(input, 'utf8'));
+          fs.appendFileSync(output, `available=${value.updateAvailable}\ncurrent=${value.currentVersion}\ntarget=${value.targetVersion}\n`);
+          NODE
+
+      - name: Resolve automation branch
+        if: steps.check.outputs.available == 'true'
+        id: branch
+        env:
+          TARGET_VERSION: ${{ steps.check.outputs.target }}
+        run: |
+          safe="$(printf '%s' "$TARGET_VERSION" | tr -cs 'A-Za-z0-9._-' '-')"
+          branch="automation/molstar-$safe"
+          echo "name=$branch" >> "$GITHUB_OUTPUT"
+          if git ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
+            echo 'exists=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'exists=false' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Report existing candidate branch
+        if: steps.check.outputs.available == 'true' && steps.branch.outputs.exists == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ steps.branch.outputs.name }}
+          TARGET_VERSION: ${{ steps.check.outputs.target }}
+        run: |
+          url="$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$BRANCH" --state open --json url --jq '.[0].url // ""')"
+          {
+            echo "## Molstar $TARGET_VERSION candidate already exists"
+            echo
+            echo "Branch: \`$BRANCH\`"
+            [[ -z "$url" ]] || echo "Pull request: $url"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Set up Java
+        if: steps.check.outputs.available == 'true' && steps.branch.outputs.exists == 'false'
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Ensure Android SDK
+        if: steps.check.outputs.available == 'true' && steps.branch.outputs.exists == 'false'
+        run: bash scripts/ci/ensure-android-sdk.sh
+
+      - name: Configure release signing
+        if: steps.check.outputs.available == 'true' && steps.branch.outputs.exists == 'false'
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          for name in KEYSTORE_BASE64 KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
+            [[ -n "${!name}" ]] || { echo "Missing signing secret: $name" >&2; exit 1; }
+          done
+          keystore="$RUNNER_TEMP/sideload.jks"
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$keystore"
+          chmod 600 "$keystore"
+          {
+            echo "MOLSTAR_ANDROID_KEYSTORE_FILE=$keystore"
+            echo "MOLSTAR_ANDROID_KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD"
+            echo "MOLSTAR_ANDROID_KEY_ALIAS=$KEY_ALIAS"
+            echo "MOLSTAR_ANDROID_KEY_PASSWORD=$KEY_PASSWORD"
+          } >> "$GITHUB_ENV"
+
+      - name: Derive candidate package version
+        if: steps.check.outputs.available == 'true' && steps.branch.outputs.exists == 'false'
+        env:
+          TARGET_VERSION: ${{ steps.check.outputs.target }}
+        run: bash scripts/ci/github-version-env.sh candidate "$GITHUB_RUN_NUMBER" "$TARGET_VERSION" >> "$GITHUB_ENV"
+
+      - name: Prepare signed update candidate
+        if: steps.check.outputs.available == 'true' && steps.branch.outputs.exists == 'false'
+        env:
+          TARGET_VERSION: ${{ steps.check.outputs.target }}
+          UPDATE_OUTPUT_DIR: ${{ runner.temp }}/molstar-update
+          UPDATE_BUILD_TYPE: release
+          BUILD_CANDIDATE: '1'
+        run: bash scripts/automation/prepare-molstar-update.sh "$TARGET_VERSION"
+
+      - name: Commit and push update branch
+        if: steps.check.outputs.available == 'true' && steps.branch.outputs.exists == 'false'
+        env:
+          BRANCH: ${{ steps.branch.outputs.name }}
+          TARGET_VERSION: ${{ steps.check.outputs.target }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git switch -c "$BRANCH"
+          git add app/src/main/assets/viewer/vendor/molstar
+          git diff --cached --quiet && { echo 'No update changes were staged' >&2; exit 1; }
+          git commit -s -m "chore: update Molstar to $TARGET_VERSION"
+          git push --set-upstream origin "$BRANCH"
+
+      - name: Create update pull request
+        if: steps.check.outputs.available == 'true' && steps.branch.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ steps.branch.outputs.name }}
+          CURRENT_VERSION: ${{ steps.check.outputs.current }}
+          TARGET_VERSION: ${{ steps.check.outputs.target }}
+          UPDATE_OUTPUT_DIR: ${{ runner.temp }}/molstar-update
+        run: |
+          body="$RUNNER_TEMP/molstar-update-pr.md"
+          cat > "$body" <<BODY
+          Automated replacement of the official Molstar Viewer runtime.
+
+          - Current Molstar: \`$CURRENT_VERSION\`
+          - Candidate Molstar: \`$TARGET_VERSION\`
+          - Change boundary: \`app/src/main/assets/viewer/vendor/molstar/**\`
+          - Candidate APK and machine-readable provenance are attached to this workflow run.
+
+          Merge only after installing the candidate APK on a real Android device.
+          BODY
+          gh pr create \
+            --repo "$GITHUB_REPOSITORY" \
+            --base main \
+            --head "$BRANCH" \
+            --title "chore: update Molstar to $TARGET_VERSION" \
+            --body-file "$body"
+
+      - name: Upload candidate and update report
+        if: steps.check.outputs.available == 'true' && steps.branch.outputs.exists == 'false'
+        uses: actions/upload-artifact@v7
+        with:
+          name: molstar-${{ steps.check.outputs.target }}-candidate
+          path: ${{ runner.temp }}/molstar-update/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Write no-update summary
+        if: steps.check.outputs.available == 'false'
+        run: |
+          echo '## Molstar is already current' >> "$GITHUB_STEP_SUMMARY"
+          echo >> "$GITHUB_STEP_SUMMARY"
+          echo "Current version: \`${{ steps.check.outputs.current }}\`" >> "$GITHUB_STEP_SUMMARY"
