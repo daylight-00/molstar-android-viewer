@@ -39,7 +39,7 @@ const release = {
   schemaVersion: 1,
   preparedAt: new Date().toISOString(),
   tag,
-  title: `Mol* Android Viewer ${artifact.versionName}`,
+  title: `Mol* Viewer for Android ${artifact.versionName}`,
   targetCommit: artifact.sourceHead,
   artifactManifest: path.relative(outputDir, artifactManifestPath),
   apkFile: path.relative(outputDir, path.join(path.dirname(artifactManifestPath), artifact.apkFile)),

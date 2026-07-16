@@ -4,5 +4,5 @@ contact_links:
     url: https://github.com/molstar/molstar/issues
     about: Use this for a problem reproducible in the official Mol* Viewer that does not depend on the Android host.
   - name: Private security report
-    url: https://github.com/daylight-00/molstar-android-viewer/security/advisories/new
+    url: https://github.com/daylight-00/molstar-viewer-android/security/advisories/new
     about: Report a suspected vulnerability privately instead of creating a public issue.

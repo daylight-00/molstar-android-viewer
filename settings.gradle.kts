@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "molstar-android-viewer"
+rootProject.name = "molstar-viewer-android"
 include(":app")

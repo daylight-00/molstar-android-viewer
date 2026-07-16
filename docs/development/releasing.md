@@ -63,9 +63,13 @@ Stable version codes use `1,000,000,000 + promote run number`; candidate version
 
 The candidate is installed beside stable and must be used on a real device before merging or promotion.
 
+## Upstream naming and branding gate
+
+Stable publication remains blocked while `UPSTREAM_NAMING_STATUS=pending` in `project.properties`. Record the permanent upstream discussion URL and the resulting guidance in [`docs/project/naming-and-branding.md`](../project/naming-and-branding.md), then change the status to `approved` in the same reviewed commit. Code licensing under MIT does not by itself grant logo or trademark permission.
+
 ## Human promotion gate
 
-After the candidate commit on `main` has been installed and approved, run:
+After the upstream naming gate is approved and the candidate commit on `main` has been installed and approved, run:
 
 ```bash
 gh workflow run promote.yml \

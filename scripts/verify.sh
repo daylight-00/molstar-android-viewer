@@ -54,6 +54,9 @@ required=(
   .github/ISSUE_TEMPLATE/config.yml
   docs/user/README.md
   docs/user/troubleshooting.md
+  docs/project/README.md
+  docs/project/naming-and-branding.md
+  project.properties
   docs/development/README.md
   docs/development/architecture.md
   docs/development/automation.md

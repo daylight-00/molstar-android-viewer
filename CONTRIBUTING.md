@@ -16,7 +16,7 @@ Required tools:
 
 ```bash
 git clone <repository-url>
-cd molstar-android-viewer
+cd molstar-viewer-android
 nvm install
 nvm use
 export ANDROID_SDK_ROOT=/path/to/Android/Sdk
