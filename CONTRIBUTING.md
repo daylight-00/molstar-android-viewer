@@ -79,6 +79,10 @@ bash scripts/verify.sh
 
 Automated update preparation is restricted to `app/src/main/assets/viewer/vendor/molstar/**`. See [docs/development/upstream-molstar.md](docs/development/upstream-molstar.md).
 
+## Issues and security
+
+Use the structured issue forms for public bug reports and feature requests. Do not open a public issue for a suspected vulnerability; follow [SECURITY.md](SECURITY.md) and use private vulnerability reporting. Never upload confidential molecular structures or diagnostics without first reducing and sanitizing them.
+
 ## Pull requests
 
 Keep pull requests narrow and explain:

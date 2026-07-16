@@ -2,6 +2,12 @@
 
 Mol* Android Viewer packages the official Mol* Viewer runtime in an Android application and connects it to Android's file and sharing workflows.
 
+## Installation status
+
+A public stable APK has not been released yet. Stable packages will appear on the repository's GitHub Releases page only after naming guidance, permanent-signing verification, and approval of the exact release commit on a real Android device.
+
+GitHub Actions artifacts are development builds. They may be useful for testing, but they are not long-lived stable packages and should not be redistributed as official releases.
+
 ## Opening files
 
 A local file can be opened in three ways:

@@ -1,0 +1,88 @@
+name: Bug report
+description: Report a reproducible problem in the Android host or its Mol* integration
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include private molecular structures, credentials, medical data, or other confidential files. For security issues, use the private reporting path described in `SECURITY.md` instead of this form.
+  - type: input
+    id: version
+    attributes:
+      label: App version and channel
+      description: Include the version name, stable/candidate/debug channel, and commit or Actions run when known.
+      placeholder: "0.2.1-molstar.5.10.1 candidate, commit ..."
+    validations:
+      required: true
+  - type: input
+    id: android
+    attributes:
+      label: Android device and version
+      placeholder: "Pixel 8, Android 16"
+    validations:
+      required: true
+  - type: input
+    id: webview
+    attributes:
+      label: System WebView provider and version
+      description: This is available in Android settings or the app diagnostics output.
+      placeholder: "Android System WebView 140.x"
+    validations:
+      required: true
+  - type: dropdown
+    id: entry
+    attributes:
+      label: How was the file or workflow opened?
+      options:
+        - Mol* Open File control
+        - Android Open with / ACTION_VIEW
+        - Android Share / ACTION_SEND
+        - Android multiple-file share / ACTION_SEND_MULTIPLE
+        - No file involved
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction steps
+      description: Use a minimal public or synthetic file when a file is required.
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics and screenshots
+      description: Redact private paths and data. Drag files here only when they are safe to publish.
+  - type: dropdown
+    id: upstream
+    attributes:
+      label: Does the same problem occur in the official Mol* web Viewer?
+      options:
+        - Not tested
+        - Yes
+        - No
+        - Not applicable
+    validations:
+      required: true
+  - type: checkboxes
+    id: confirmation
+    attributes:
+      label: Confirmation
+      options:
+        - label: I searched existing issues and removed confidential information from this report.
+          required: true

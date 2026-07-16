@@ -47,6 +47,11 @@ required=(
   .github/workflows/molstar-update.yml
   .github/workflows/promote.yml
   CONTRIBUTING.md
+  SECURITY.md
+  .github/PULL_REQUEST_TEMPLATE.md
+  .github/ISSUE_TEMPLATE/bug-report.yml
+  .github/ISSUE_TEMPLATE/feature-request.yml
+  .github/ISSUE_TEMPLATE/config.yml
   docs/user/README.md
   docs/user/troubleshooting.md
   docs/development/README.md

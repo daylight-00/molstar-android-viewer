@@ -6,6 +6,11 @@ import path from 'node:path';
 const requiredPaths = [
     'README.md',
     'CONTRIBUTING.md',
+    'SECURITY.md',
+    '.github/PULL_REQUEST_TEMPLATE.md',
+    '.github/ISSUE_TEMPLATE/bug-report.yml',
+    '.github/ISSUE_TEMPLATE/feature-request.yml',
+    '.github/ISSUE_TEMPLATE/config.yml',
     'docs/user/README.md',
     'docs/user/troubleshooting.md',
     'docs/development/README.md',
@@ -72,5 +77,13 @@ for (const file of markdown) {
         if (!fs.existsSync(resolved)) throw new Error(`broken relative link in ${file}: ${target}`);
     }
 }
+
+const security = fs.readFileSync('SECURITY.md', 'utf8');
+if (!security.includes('Report a vulnerability')) throw new Error('SECURITY.md must direct reporters to private vulnerability reporting');
+if (/mailto:/i.test(security)) throw new Error('SECURITY.md must not expose an owner-specific email address');
+
+const issueConfig = fs.readFileSync('.github/ISSUE_TEMPLATE/config.yml', 'utf8');
+if (!issueConfig.includes('/security/advisories/new')) throw new Error('issue config must link to private vulnerability reporting');
+if (!issueConfig.includes('github.com/molstar/molstar/issues')) throw new Error('issue config must identify the upstream Mol* tracker');
 
 console.log('Public/developer/private repository boundary passed.');
