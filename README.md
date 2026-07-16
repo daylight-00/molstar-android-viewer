@@ -8,7 +8,8 @@ The application keeps Mol*'s complete built-in UI. Android handles only platform
 
 - APK lifecycle and WebView hosting
 - local structure files through Mol*'s own file controls and Android share/open intents
-- `VIEW` and `SEND` intents
+- `VIEW` and `SEND` intents with Mol* trajectory-extension recognition
+- automatic use of the official Mol* dark stylesheet when Android is in dark mode
 - PDB ID loading
 - system-bar safe-area handling through an outer host container, without a persistent native app bar
 - native reload and diagnostics controls only when WebView or Mol* startup fails
@@ -26,7 +27,7 @@ APK
         └── official Mol* viewer bundle
 ```
 
-Files selected inside Mol* are returned through `WebChromeClient.onShowFileChooser`. Files received from Android `VIEW` or `SEND` intents are copied from `content://` URIs into private app storage and exposed through `WebViewAssetLoader` under the HTTPS-like `appassets.androidplatform.net` origin.
+Files selected inside Mol* are returned through `WebChromeClient.onShowFileChooser`. The host recognizes the built-in Mol* trajectory extensions (`pdb`, `ent`, `pdbqt`, `pqr`, `cif`, `mmcif`, `mcif`, `bcif`, `gro`, `xyz`, `data`, `lammpstrj`, `mol`, `sdf`, `sd`, and `mol2`) and the same extensions wrapped in gzip. Files received from Android `VIEW` or `SEND` intents are copied from `content://` URIs into private app storage and exposed through `WebViewAssetLoader` under the HTTPS-like `appassets.androidplatform.net` origin.
 
 The Android action bar is intentionally absent. Mol* owns the normal viewer UI; Android shows native recovery controls only when startup fails.
 

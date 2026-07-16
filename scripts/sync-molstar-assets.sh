@@ -18,9 +18,10 @@ tar -xzf "$TARBALL" -C package-root
 SRC="$TMP/package-root/package"
 
 rm -rf "$DEST"
-mkdir -p "$DEST/images"
+mkdir -p "$DEST/images" "$DEST/theme"
 cp "$SRC/build/viewer/molstar.js" "$DEST/"
 cp "$SRC/build/viewer/molstar.css" "$DEST/"
+cp "$SRC/build/viewer/theme/dark.css" "$DEST/theme/"
 cp "$SRC/build/viewer/favicon.ico" "$DEST/"
 cp -a "$SRC/build/viewer/images/." "$DEST/images/"
 cp "$SRC/LICENSE" "$DEST/LICENSE"

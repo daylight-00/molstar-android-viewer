@@ -22,10 +22,12 @@
         try {
             switch (type) {
                 case 'open-structure':
+                case 'open-file':
                     await viewer.loadStructureFromUrl(
                         String(payload.url),
                         String(payload.format || 'mmcif'),
                         Boolean(payload.binary),
+                        { label: payload.name ? String(payload.name) : undefined },
                     );
                     break;
                 case 'open-pdb':
@@ -75,7 +77,10 @@
         });
         window.__molstarViewer = viewer;
         if (window.MolBoot) window.MolBoot.markReady();
-        emit('ready', { molstarVersion: window.molstar.version || 'unknown' });
+        emit('ready', {
+            molstarVersion: window.molstar.version || 'unknown',
+            theme: window.MolTheme ? window.MolTheme.getTheme() : 'unknown',
+        });
     }
 
     initialize().catch(error => {

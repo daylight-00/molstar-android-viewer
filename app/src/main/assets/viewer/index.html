@@ -6,14 +6,28 @@
     <meta http-equiv="Content-Security-Policy"
           content="default-src 'self' data: blob: https:; connect-src 'self' data: blob: https:; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval'; worker-src 'self' blob:; object-src 'none'; base-uri 'none'">
     <title>Mol* Android Viewer</title>
-    <link rel="stylesheet" href="vendor/molstar/molstar.css">
+    <link id="molstar-theme-light" rel="stylesheet" href="vendor/molstar/molstar.css">
+    <link id="molstar-theme-dark" rel="stylesheet" href="vendor/molstar/theme/dark.css" disabled>
+    <script src="theme-controller.js"></script>
     <style>
+        :root {
+            --host-background: #f7f7f8;
+            --host-foreground: #202124;
+            --host-error: #b3261e;
+        }
+
+        :root[data-theme="dark"] {
+            --host-background: #101418;
+            --host-foreground: #e8eaed;
+            --host-error: #ffb4ab;
+        }
+
         html, body {
             width: 100%;
             height: 100%;
             margin: 0;
             overflow: hidden;
-            background: #101418;
+            background: var(--host-background);
         }
 
         #app {
@@ -29,15 +43,15 @@
             place-items: center;
             padding: 24px;
             box-sizing: border-box;
-            color: #e8eaed;
-            background: #101418;
+            color: var(--host-foreground);
+            background: var(--host-background);
             font: 16px/1.5 sans-serif;
             text-align: center;
             white-space: pre-wrap;
         }
 
         #boot-status[data-state="error"] {
-            color: #ffb4ab;
+            color: var(--host-error);
         }
 
         #boot-status[hidden] {

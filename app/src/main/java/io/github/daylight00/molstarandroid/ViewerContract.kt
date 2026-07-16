@@ -16,6 +16,16 @@ object ViewerContract {
                 .put("binary", binary),
         )
 
+    fun openFile(url: String, name: String, format: String, binary: Boolean): JSONObject =
+        command(
+            "open-file",
+            JSONObject()
+                .put("url", url)
+                .put("name", name)
+                .put("format", format)
+                .put("binary", binary),
+        )
+
     fun openPdb(id: String): JSONObject =
         command("open-pdb", JSONObject().put("id", id.trim().uppercase()))
 

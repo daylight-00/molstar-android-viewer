@@ -11,8 +11,10 @@ required=(
   app/src/main/assets/viewer/index.html
   app/src/main/assets/viewer/app-bridge.js
   app/src/main/assets/viewer/boot-diagnostics.js
+  app/src/main/assets/viewer/theme-controller.js
   app/src/main/assets/viewer/vendor/molstar/molstar.js
   app/src/main/assets/viewer/vendor/molstar/molstar.css
+  app/src/main/assets/viewer/vendor/molstar/theme/dark.css
   app/src/main/assets/viewer/vendor/molstar/LICENSE
   app/src/main/assets/viewer/vendor/molstar/VERSION
   app/src/main/assets/viewer/vendor/molstar/SHA256SUMS
@@ -30,6 +32,7 @@ done
 
 node --check app/src/main/assets/viewer/app-bridge.js
 node --check app/src/main/assets/viewer/boot-diagnostics.js
+node --check app/src/main/assets/viewer/theme-controller.js
 node scripts/verify-viewer-shell.mjs
 bash -n scripts/device/install-debug-apk.sh
 bash -n scripts/device/verify-debug-apk.sh
@@ -48,6 +51,12 @@ grep -q 'WindowInsets.Type.displayCutout()' app/src/main/java/io/github/daylight
 grep -q 'private lateinit var rootView: FrameLayout' app/src/main/java/io/github/daylight00/molstarandroid/MainActivity.kt
 grep -q 'rootView.addView(webView)' app/src/main/java/io/github/daylight00/molstarandroid/MainActivity.kt
 grep -q 'layoutShowLog: false' app/src/main/assets/viewer/app-bridge.js
+grep -q 'getSystemTheme' app/src/main/java/io/github/daylight00/molstarandroid/MainActivity.kt
+grep -q 'onConfigurationChanged' app/src/main/java/io/github/daylight00/molstarandroid/MainActivity.kt
+grep -q 'GZIPInputStream' app/src/main/java/io/github/daylight00/molstarandroid/MainActivity.kt
+grep -q '"pdbqt" -> "pdbqt"' app/src/main/java/io/github/daylight00/molstarandroid/MainActivity.kt
+grep -q '"pqr" -> "pqr"' app/src/main/java/io/github/daylight00/molstarandroid/MainActivity.kt
+grep -q '"lammpstrj" -> "lammps_traj_data"' app/src/main/java/io/github/daylight00/molstarandroid/MainActivity.kt
 if grep -q 'applySystemBarInsets(this)' app/src/main/java/io/github/daylight00/molstarandroid/MainActivity.kt; then
   echo 'system insets must be applied to the outer host container, not the WebView' >&2
   exit 1

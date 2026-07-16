@@ -31,3 +31,12 @@ Mol*'s optional log panel prefixes each log entry with the time at which that en
 ## Mol* file button does nothing
 
 Mol* uses a web file input for local structures. `MainActivity` implements `WebChromeClient.onShowFileChooser` and returns Android Storage Access Framework URIs to the WebView. This path is separate from Android `VIEW` and `SEND` intents.
+
+
+## Theme does not follow Android
+
+The viewer uses the official default and dark Mol* stylesheets. `theme-controller.js` reads `MolAndroid.getSystemTheme()` during page startup, and `MainActivity.onConfigurationChanged` forwards later `uiMode` changes to `window.MolTheme` without clearing the loaded molecular state.
+
+## Android share/open rejects a file
+
+The host path accepts Mol* built-in trajectory extensions and gzip-wrapped variants. The inner extension of a `.gz` file must still be recognizable, for example `model.pdb.gz` or `model.bcif.gz`. Multi-file topology/coordinate combinations should be opened from Mol*'s own file control.

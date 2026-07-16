@@ -17,6 +17,7 @@ Android Activity / file chooser / share intents / lifecycle
 Android code sends product-level JSON commands only:
 
 - `open-structure`
+- `open-file`
 - `open-pdb`
 - `open-alphafold`
 - `clear`
@@ -43,3 +44,11 @@ Android UI appears only for host-level recovery:
 - startup diagnostics
 
 Mol* file inputs are delegated to Android through `WebChromeClient.onShowFileChooser`. Android `VIEW` and `SEND` intents remain supported independently of the visible viewer UI.
+
+## Theme boundary
+
+The APK vendors the official default and dark Mol* CSS bundles. `theme-controller.js` is a thin adapter that selects one based on Android `uiMode`; `MainActivity` forwards runtime system-theme changes without reloading the molecular state.
+
+## Host file recognition
+
+Android share/open intents validate file names against Mol*'s built-in trajectory extensions. Gzip-wrapped files are decompressed in private storage while preserving the inner extension before the stable `open-file` command is sent to the viewer. Mol*'s own file control remains authoritative for multi-file topology/trajectory workflows and other registered data formats.
