@@ -2,7 +2,6 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-ANDROID_SDK_CANDIDATE="${ANDROID_SDK_CANDIDATE:-$HOME/opt/Android}"
 APK_PATH="${APK_PATH:-${1:-}}"
 FIXTURE="${FIXTURE:-$ROOT/scripts/device/fixtures/minimal-ala.pdb}"
 APP_ID="${APP_ID:-io.github.daylight00.molstarandroid.candidate}"
@@ -10,7 +9,7 @@ ACTIVITY="${ACTIVITY:-$APP_ID/.MainActivity}"
 WAIT_SECONDS="${WAIT_SECONDS:-45}"
 KEEP_DEVICE_FIXTURE="${KEEP_DEVICE_FIXTURE:-0}"
 UTC="$(date -u +%Y%m%dT%H%M%SZ)"
-EVIDENCE_DIR="${EVIDENCE_DIR:-$HOME/Downloads/hw-t-device-results/molstar-android-viewer/device-smoke-$UTC}"
+EVIDENCE_DIR="${EVIDENCE_DIR:-$HOME/Downloads/molstar-android-viewer-device-results/device-smoke-$UTC}"
 REMOTE_NAME="molstar-android-smoke-$UTC.pdb"
 REMOTE_PATH="/sdcard/Download/$REMOTE_NAME"
 DOCUMENT_URI="content://com.android.externalstorage.documents/document/primary%3ADownload%2F$REMOTE_NAME"

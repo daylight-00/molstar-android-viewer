@@ -1,7 +1,7 @@
 # Upstream Mol*
 
 - Package: `molstar`
-- Vendored version: `5.10.1`
+- Vendored version: recorded in `app/src/main/assets/viewer/vendor/molstar/VERSION`
 - Source: `https://github.com/molstar/molstar`
 - License: MIT; copied into the vendor directory
 
@@ -19,7 +19,7 @@ The directory contains official prebuilt viewer runtime files, upstream license/
 
 ## Toolchain
 
-Upstream synchronization and JavaScript contract tests target the tracked Node.js 24 LTS toolchain. `.nvmrc` contains the canonical major version, and verification requires Node 24.x with npm 11 or newer. The repository intentionally uses native ESM, top-level `await`, `Blob`, `File`, and `fetch` rather than compatibility polyfills for obsolete Node releases.
+Upstream synchronization and JavaScript contract tests target the tracked Node.js 24 LTS toolchain. `.nvmrc` contains the required major version, and verification requires Node 24.x with npm 11 or newer. The repository intentionally uses native ESM, top-level `await`, `Blob`, `File`, and `fetch` rather than compatibility polyfills for obsolete Node releases.
 
 ```bash
 nvm install

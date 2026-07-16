@@ -5,8 +5,6 @@ cd "$ROOT"
 
 VERIFY_BUILD="${VERIFY_BUILD:-auto}"
 VERIFY_VARIANT="${VERIFY_VARIANT:-CandidateDebug}"
-ANDROID_SDK_CANDIDATE="${ANDROID_SDK_CANDIDATE:-$HOME/opt/Android}"
-export ANDROID_SDK_CANDIDATE
 
 required=(
   .nvmrc
@@ -48,8 +46,15 @@ required=(
   .github/workflows/ci.yml
   .github/workflows/molstar-update.yml
   .github/workflows/promote.yml
-  docs/automation-readiness.md
-  docs/signing-and-release.md
+  CONTRIBUTING.md
+  docs/user/README.md
+  docs/user/troubleshooting.md
+  docs/development/README.md
+  docs/development/architecture.md
+  docs/development/automation.md
+  docs/development/releasing.md
+  docs/development/upstream-molstar.md
+  scripts/verify-public-boundary.mjs
 )
 for path in "${required[@]}"; do
   [[ -s "$path" ]] || { echo "missing or empty: $path" >&2; exit 1; }
@@ -70,6 +75,7 @@ node --check app/src/main/assets/viewer/theme-controller.js
 node scripts/verify-viewer-shell.mjs
 node scripts/verify-native-file-bridge.mjs
 node scripts/verify-automation-contract.mjs
+node scripts/verify-public-boundary.mjs
 node --check scripts/ci/verify-artifact.mjs
 node --check scripts/automation/check-molstar-update.mjs
 for script in \
@@ -90,9 +96,7 @@ for script in \
   scripts/automation/prepare-molstar-update.sh \
   scripts/release/prepare-release.sh \
   scripts/release/publish-github-release.sh \
-  scripts/release/configure-github-signing.sh \
-  scripts/linux-bootstrap-and-publish.sh \
-  scripts/rclone/push-user-result.sh; do
+  scripts/release/configure-github-signing.sh; do
   bash -n "$script"
 done
 (

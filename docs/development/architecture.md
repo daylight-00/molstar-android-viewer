@@ -99,6 +99,6 @@ Expected code impact:
 
 ## Delivery boundary
 
-Build and delivery automation does not enter the three runtime layers. Gradle product flavors create a stable application and a parallel-installable candidate application from the same source. Environment variables supply package versioning and optional release signing. Repository-owned scripts prepare upstream updates and signed artifacts; future GitHub Actions workflows only schedule and publish those outputs.
+Build and delivery automation does not enter the three runtime layers. Gradle product flavors create a stable application and a parallel-installable candidate application from the same source. Environment variables supply package versioning and optional release signing. Repository-owned scripts prepare upstream updates and signed artifacts; GitHub Actions workflows only schedule and publish those outputs.
 
 Automated upstream preparation is permitted to change only Layer 1 under `vendor/molstar/**`. Any change to Layer 2 or Layer 3 requires an explicit human-authored commit.

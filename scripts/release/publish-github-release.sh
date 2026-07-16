@@ -5,7 +5,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 MANIFEST="${1:-${RELEASE_OUTPUT_DIR:-$ROOT/artifacts/release}/release-manifest.json}"
 PUBLISH_DRY_RUN="${PUBLISH_DRY_RUN:-0}"
-REPOSITORY="${GITHUB_REPOSITORY:-daylight-00/molstar-android-viewer}"
+REPOSITORY="${GITHUB_REPOSITORY:-}"
 
 for cmd in git node sha256sum; do
   command -v "$cmd" >/dev/null || { echo "missing command: $cmd" >&2; exit 1; }
@@ -13,6 +13,20 @@ done
 if [[ "$PUBLISH_DRY_RUN" != "1" ]]; then
   command -v gh >/dev/null || { echo "missing command: gh" >&2; exit 1; }
 fi
+if [[ -z "$REPOSITORY" ]] && command -v gh >/dev/null 2>&1; then
+  REPOSITORY="$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null || true)"
+fi
+if [[ -z "$REPOSITORY" ]]; then
+  origin_url="$(git remote get-url origin 2>/dev/null || true)"
+  case "$origin_url" in
+    https://github.com/*.git) REPOSITORY="${origin_url#https://github.com/}"; REPOSITORY="${REPOSITORY%.git}" ;;
+    git@github.com:*.git) REPOSITORY="${origin_url#git@github.com:}"; REPOSITORY="${REPOSITORY%.git}" ;;
+  esac
+fi
+if [[ -z "$REPOSITORY" && "$PUBLISH_DRY_RUN" == "1" ]]; then
+  REPOSITORY="local/repository"
+fi
+[[ -n "$REPOSITORY" ]] || { echo "could not resolve GitHub repository" >&2; exit 1; }
 [[ -s "$MANIFEST" ]] || { echo "release manifest not found: $MANIFEST" >&2; exit 1; }
 OUTPUT_DIR="$(cd "$(dirname "$MANIFEST")" && pwd)"
 

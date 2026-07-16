@@ -4,7 +4,7 @@ Android accepts an update to an installed application only when the application 
 
 ## One-time permanent key and GitHub Secrets
 
-Run this only on the canonical Linux workstation:
+Run this only on a trusted local workstation:
 
 ```bash
 bash scripts/release/configure-github-signing.sh
@@ -69,7 +69,7 @@ After the candidate commit on `main` has been installed and approved, run:
 
 ```bash
 gh workflow run promote.yml \
-  --repo daylight-00/molstar-android-viewer \
+  --repo "$(gh repo view --json nameWithOwner --jq .nameWithOwner)" \
   -f approved_commit="$(git rev-parse HEAD)"
 ```
 

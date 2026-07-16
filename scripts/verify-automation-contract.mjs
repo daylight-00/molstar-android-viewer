@@ -41,7 +41,7 @@ requireMatch(version.includes('1000000000'), 'stable GitHub version-code band is
 requireMatch(version.includes('1100000000'), 'candidate GitHub version-code band is missing');
 requireMatch(fs.existsSync('scripts/ci/simulate-actions.sh'), 'local Actions simulation is missing');
 requireMatch(fs.existsSync('scripts/release/configure-github-signing.sh'), 'GitHub signing setup helper is missing');
-requireMatch(fs.existsSync('docs/automation-readiness.md'), 'automation documentation is missing');
+requireMatch(fs.existsSync('docs/development/automation.md'), 'automation documentation is missing');
 
 requireOfficialActions(ciWorkflow, 'CI workflow');
 requireOfficialActions(updateWorkflow, 'Molstar update');

@@ -9,8 +9,6 @@ BUILD_TYPE="${2:-debug}"
 ARTIFACT_OUTPUT_DIR="${ARTIFACT_OUTPUT_DIR:-$ROOT/artifacts/$CHANNEL-$BUILD_TYPE}"
 SKIP_VERIFY="${SKIP_VERIFY:-0}"
 ALLOW_UNSIGNED_RELEASE="${ALLOW_UNSIGNED_RELEASE:-0}"
-ANDROID_SDK_CANDIDATE="${ANDROID_SDK_CANDIDATE:-$HOME/opt/Android}"
-export ANDROID_SDK_CANDIDATE
 
 case "$CHANNEL" in stable|candidate) ;; *) echo "channel must be stable or candidate" >&2; exit 1 ;; esac
 case "$BUILD_TYPE" in debug|release) ;; *) echo "build type must be debug or release" >&2; exit 1 ;; esac

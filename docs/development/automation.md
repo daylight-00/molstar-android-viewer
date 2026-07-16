@@ -1,6 +1,6 @@
 # GitHub Actions and release automation
 
-The repository now contains the complete unattended update and CI release path. Workflow YAML is intentionally thin: Android, update, signing, artifact, and release logic remains in repository-owned scripts that can be reproduced on the canonical Linux workstation.
+The repository now contains the complete unattended update and CI release path. Workflow YAML is intentionally thin: Android, update, signing, artifact, and release logic remains in repository-owned scripts that can be reproduced in a local checkout.
 
 ## Workflows
 
@@ -66,7 +66,7 @@ The simulation creates an ephemeral two-day keystore, builds signed candidate an
 
 ## Initial activation
 
-One permanent signing identity is still an external prerequisite. Configure it once from the canonical Linux workstation:
+One permanent signing identity is still an external prerequisite. Configure it once from a trusted local workstation:
 
 ```bash
 bash scripts/release/configure-github-signing.sh

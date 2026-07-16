@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-REPOSITORY="${GITHUB_REPOSITORY:-daylight-00/molstar-android-viewer}"
+REPOSITORY="${GITHUB_REPOSITORY:-}"
 KEYSTORE_PATH="${KEYSTORE_PATH:-$HOME/.local/share/molstar-android-viewer/sideload.jks}"
 KEY_ALIAS="${KEY_ALIAS:-molstar-android-sideload}"
 
@@ -10,6 +10,10 @@ for cmd in keytool gh base64; do
   command -v "$cmd" >/dev/null || { echo "missing command: $cmd" >&2; exit 1; }
 done
 gh auth status >/dev/null
+if [[ -z "$REPOSITORY" ]]; then
+  REPOSITORY="$(gh repo view --json nameWithOwner --jq .nameWithOwner)"
+fi
+[[ -n "$REPOSITORY" ]] || { echo "could not resolve GitHub repository" >&2; exit 1; }
 mkdir -p "$(dirname "$KEYSTORE_PATH")"
 chmod 700 "$(dirname "$KEYSTORE_PATH")"
 

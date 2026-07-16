@@ -1,19 +1,31 @@
 #!/usr/bin/env bash
 
-# Shared Android SDK discovery for the canonical Linux workstation workflow.
-# Source this file and call resolve_android_sdk <repository-root>.
+# Shared Android SDK discovery. Source this file and call
+# resolve_android_sdk <repository-root>.
 
 resolve_android_sdk() {
   local repo_root="${1:?repository root is required}"
-  local sdk_root="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-${ANDROID_SDK_CANDIDATE:-$HOME/opt/Android}}}"
+  local sdk_root="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-${ANDROID_SDK_CANDIDATE:-}}}"
+
+  if [[ -z "$sdk_root" ]]; then
+    local candidate
+    for candidate in \
+      "$HOME/Android/Sdk" \
+      "$HOME/Library/Android/sdk" \
+      "/opt/android-sdk"; do
+      if [[ -d "$candidate" ]]; then
+        sdk_root="$candidate"
+        break
+      fi
+    done
+  fi
 
   if [[ "$sdk_root" == "~/"* ]]; then
     sdk_root="$HOME/${sdk_root#~/}"
   fi
 
-  if [[ ! -d "$sdk_root" ]]; then
-    printf 'Android SDK not found: %s\n' "$sdk_root" >&2
-    printf 'Set ANDROID_SDK_ROOT or ANDROID_SDK_CANDIDATE.\n' >&2
+  if [[ -z "$sdk_root" || ! -d "$sdk_root" ]]; then
+    printf 'Android SDK not found. Set ANDROID_SDK_ROOT, ANDROID_HOME, or ANDROID_SDK_CANDIDATE.\n' >&2
     return 1
   fi
 
@@ -27,7 +39,6 @@ resolve_android_sdk() {
   escaped="${escaped// /\\ }"
   printf 'sdk.dir=%s\n' "$escaped" > "$repo_root/local.properties"
 }
-
 
 resolve_android_build_tool() {
   local tool_name="${1:?Android build tool name is required}"
