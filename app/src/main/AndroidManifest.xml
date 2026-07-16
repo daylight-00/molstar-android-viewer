@@ -19,6 +19,7 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- Untyped file/content URIs. Mol* decides whether the selected data is supported. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -27,24 +28,24 @@
                 <data android:scheme="file" />
             </intent-filter>
 
+            <!-- Typed file/content URIs without duplicating Mol*'s format registry. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
-                <data android:mimeType="chemical/x-pdb" />
-                <data android:mimeType="chemical/x-pdbqt" />
-                <data android:mimeType="chemical/x-pqr" />
-                <data android:mimeType="chemical/x-cif" />
-                <data android:mimeType="chemical/x-mmcif" />
-                <data android:mimeType="chemical/x-mdl-molfile" />
-                <data android:mimeType="chemical/x-mdl-sdfile" />
-                <data android:mimeType="chemical/x-mol2" />
-                <data android:mimeType="chemical/x-xyz" />
-                <data android:mimeType="application/gzip" />
-                <data android:mimeType="application/x-gzip" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:mimeType="*/*" />
             </intent-filter>
 
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="*/*" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="*/*" />
             </intent-filter>

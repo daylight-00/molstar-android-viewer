@@ -173,7 +173,7 @@ The canonical smoke command is:
 bash scripts/device/verify-debug-apk.sh
 ```
 
-It installs the debug APK, starts the Activity, waits for the JavaScript `ready` event, copies a bounded PDB fixture to public Downloads, grants the Activity read access through an External Storage DocumentsProvider URI, waits for the `open-structure` completion event, rejects viewer error events, and records logcat, screenshot, package state, device properties, current WebView provider, APK hash, and fixture hash.
+It installs the debug APK, starts the Activity, waits for the JavaScript `ready` event, copies a bounded PDB fixture to public Downloads, grants the Activity read access through an External Storage DocumentsProvider URI, waits for the `open-files` completion event, rejects viewer error events, and records logcat, screenshot, package state, device properties, current WebView provider, APK hash, and fixture hash.
 
 ## Claim boundary
 

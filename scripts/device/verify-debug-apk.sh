@@ -88,7 +88,7 @@ wait_for_log 'Mol* viewer ready event' '"type":"ready"'
   -t chemical/x-pdb \
   -f 0x00000001 \
   -n "$ACTIVITY" | tee "$EVIDENCE_DIR/launch-structure.txt"
-wait_for_log 'local PDB command completion' '"type":"command-completed"' '"type":"open-structure"'
+wait_for_log 'native PDB file completion' '"type":"command-completed"' '"type":"open-files"'
 
 "${adb_cmd[@]}" logcat -d -v threadtime > "$EVIDENCE_DIR/logcat-full.txt"
 "${adb_cmd[@]}" logcat -d -v threadtime MolstarAndroid:D '*:S' > "$EVIDENCE_DIR/logcat-app.txt"

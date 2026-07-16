@@ -28,10 +28,10 @@ import android.webkit.WebViewClient
 import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.webkit.WebViewAssetLoader
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.util.UUID
-import java.util.zip.GZIPInputStream
 
 class MainActivity : Activity() {
     private lateinit var rootView: FrameLayout
@@ -65,11 +65,11 @@ class MainActivity : Activity() {
         applySystemBarInsets(rootView)
         rootView.requestApplyInsets()
 
-        viewerFilesDir = File(filesDir, "viewer-files").apply { mkdirs() }
+        viewerFilesDir = File(cacheDir, "molstar-native-files").apply { mkdirs() }
         assetLoader = WebViewAssetLoader.Builder()
             .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(this))
             .addPathHandler(
-                "/user-files/",
+                "/native-files/",
                 WebViewAssetLoader.InternalStoragePathHandler(this, viewerFilesDir),
             )
             .build()
@@ -247,43 +247,83 @@ class MainActivity : Activity() {
     }
 
     private fun handleIncomingIntent(intent: Intent?) {
-        val uri = when (intent?.action) {
-            Intent.ACTION_VIEW -> intent.data
-            Intent.ACTION_SEND -> if (Build.VERSION.SDK_INT >= 33) {
-                intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
-            } else {
-                @Suppress("DEPRECATION")
-                intent.getParcelableExtra(Intent.EXTRA_STREAM)
-            }
-            else -> null
-        }
-        uri?.let(::importAndOpen)
+        val uris = collectIncomingUris(intent)
+        if (uris.isNotEmpty()) importAndOpen(uris)
     }
 
-    private fun importAndOpen(uri: Uri) {
+    private fun collectIncomingUris(intent: Intent?): List<Uri> {
+        if (intent == null) return emptyList()
+        val uris = mutableListOf<Uri>()
+        when (intent.action) {
+            Intent.ACTION_VIEW -> intent.data?.let(uris::add)
+            Intent.ACTION_SEND -> getStreamUri(intent)?.let(uris::add)
+            Intent.ACTION_SEND_MULTIPLE -> uris.addAll(getStreamUris(intent))
+        }
+        intent.clipData?.let { clip ->
+            for (index in 0 until clip.itemCount) {
+                clip.getItemAt(index).uri?.let(uris::add)
+            }
+        }
+        return uris.distinctBy(Uri::toString)
+    }
+
+    private fun getStreamUri(intent: Intent): Uri? = if (Build.VERSION.SDK_INT >= 33) {
+        intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
+    } else {
+        @Suppress("DEPRECATION")
+        intent.getParcelableExtra(Intent.EXTRA_STREAM)
+    }
+
+    private fun getStreamUris(intent: Intent): List<Uri> = if (Build.VERSION.SDK_INT >= 33) {
+        intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM, Uri::class.java).orEmpty()
+    } else {
+        @Suppress("DEPRECATION")
+        intent.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM).orEmpty()
+    }
+
+    /**
+     * Native integration transports bytes, names, and MIME types only.
+     * Mol* remains the sole authority for format detection, decompression, and multi-file pairing.
+     */
+    private fun importAndOpen(uris: List<Uri>) {
         Thread {
+            val batchId = UUID.randomUUID().toString()
+            val batchDir = File(viewerFilesDir, batchId)
             runCatching {
-                val sourceName = queryDisplayName(uri) ?: uri.lastPathSegment ?: "structure.cif"
-                val safeName = sanitizeFileName(sourceName)
-                val detected = detectStructureFile(safeName)
-                val storedName = if (detected.gzip) safeName.dropLast(3) else safeName
-                val target = File(viewerFilesDir, "${UUID.randomUUID()}-$storedName")
-                contentResolver.openInputStream(uri).use { rawInput ->
-                    requireNotNull(rawInput) { "Cannot open $uri" }
-                    val decodedInput = if (detected.gzip) GZIPInputStream(rawInput) else rawInput
-                    decodedInput.use { input -> target.outputStream().use(input::copyTo) }
+                require(batchDir.mkdirs()) { "Cannot create native file transport directory" }
+                val files = JSONArray()
+                uris.forEachIndexed { index, uri ->
+                    val name = queryDisplayName(uri)
+                        ?: uri.lastPathSegment?.substringAfterLast('/')
+                        ?: "file-${index + 1}"
+                    val target = File(batchDir, index.toString())
+                    contentResolver.openInputStream(uri).use { input ->
+                        requireNotNull(input) { "Cannot open $uri" }
+                        target.outputStream().use(input::copyTo)
+                    }
+                    val url = "${ViewerContract.ORIGIN}/native-files/$batchId/$index"
+                    files.put(
+                        JSONObject()
+                            .put("url", url)
+                            .put("name", normalizeDisplayName(name, index))
+                            .put("type", runCatching { contentResolver.getType(uri) }.getOrNull() ?: ""),
+                    )
                 }
-                val url = "${ViewerContract.ORIGIN}/user-files/${target.name}"
-                ViewerContract.openFile(url, storedName, detected.format, detected.binary)
+                ViewerContract.openFiles(batchId, files)
             }.onSuccess { command ->
                 runOnUiThread {
                     val queued = !viewerReady
                     dispatch(command)
-                    toast(if (queued) "Structure queued while viewer starts" else "Opening structure")
+                    val count = uris.size
+                    toast(
+                        if (queued) "$count file(s) queued while viewer starts"
+                        else "Opening $count file(s)",
+                    )
                 }
             }.onFailure { error ->
-                Log.e(TAG, "Failed to import structure", error)
-                runOnUiThread { toast(error.message ?: "Failed to open structure") }
+                batchDir.deleteRecursively()
+                Log.e(TAG, "Failed to transport native files", error)
+                runOnUiThread { toast(error.message ?: "Failed to open files") }
             }
         }.start()
     }
@@ -292,44 +332,20 @@ class MainActivity : Activity() {
         if (uri.scheme != "content") return null
         return contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
             ?.use { cursor ->
-                if (!cursor.moveToFirst()) null else cursor.getString(0)
+                val column = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (column < 0 || !cursor.moveToFirst()) null else cursor.getString(column)
             }
     }
 
-    private data class DetectedStructureFile(
-        val format: String,
-        val binary: Boolean,
-        val gzip: Boolean,
-    )
-
-    private fun sanitizeFileName(name: String): String {
-        val sanitized = name.substringAfterLast('/').replace(Regex("[^A-Za-z0-9._-]"), "_")
-        return sanitized.ifBlank { "structure.cif" }
+    private fun normalizeDisplayName(name: String, index: Int): String {
+        val leaf = name.substringAfterLast('/').substringAfterLast('\\')
+        val normalized = leaf.replace(Regex("[\\u0000-\\u001f\\u007f]"), "_").trim()
+        return normalized.ifBlank { "file-${index + 1}" }
     }
 
-    private fun detectStructureFile(name: String): DetectedStructureFile {
-        val lowerName = name.lowercase()
-        val gzip = lowerName.endsWith(".gz")
-        val uncompressedName = if (gzip) lowerName.dropLast(3) else lowerName
-        val extension = uncompressedName.substringAfterLast('.', "")
-        val (format, binary) = when (extension) {
-            "pdb", "ent" -> "pdb" to false
-            "pdbqt" -> "pdbqt" to false
-            "pqr" -> "pqr" to false
-            "cif", "mmcif", "mcif" -> "mmcif" to false
-            "bcif" -> "mmcif" to true
-            "gro" -> "gro" to false
-            "xyz" -> "xyz" to false
-            "data" -> "lammps_data" to false
-            "lammpstrj" -> "lammps_traj_data" to false
-            "mol" -> "mol" to false
-            "sdf", "sd" -> "sdf" to false
-            "mol2" -> "mol2" to false
-            else -> throw IllegalArgumentException(
-                "Unsupported structure extension: ${if (extension.isBlank()) name else ".$extension"}",
-            )
-        }
-        return DetectedStructureFile(format, binary, gzip)
+    private fun cleanupImportBatch(batchId: String?) {
+        if (batchId.isNullOrBlank() || !UUID_PATTERN.matches(batchId)) return
+        File(viewerFilesDir, batchId).deleteRecursively()
     }
 
     private fun dispatch(command: JSONObject) {
@@ -504,8 +520,9 @@ class MainActivity : Activity() {
                             }
                             "command-completed" -> {
                                 val commandType = payload?.optString("type")
-                                if (commandType == "open-structure" || commandType == "open-file") {
-                                    toast("Structure loaded")
+                                if (commandType == "open-files") {
+                                    cleanupImportBatch(payload?.optString("batchId"))
+                                    toast("File loading completed")
                                 }
                             }
                             "boot-error", "boot-timeout" -> {
@@ -515,6 +532,7 @@ class MainActivity : Activity() {
                                 showRecoveryDialog(message)
                             }
                             "error" -> {
+                                cleanupImportBatch(payload?.optString("batchId"))
                                 val message = payload?.optString("message") ?: "Viewer error"
                                 lastViewerError = message
                                 toast(message)
@@ -530,5 +548,8 @@ class MainActivity : Activity() {
     companion object {
         private const val TAG = "MolstarAndroid"
         private const val REQUEST_WEB_FILE_CHOOSER = 1002
+        private val UUID_PATTERN = Regex(
+            "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+        )
     }
 }

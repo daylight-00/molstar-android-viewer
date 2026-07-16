@@ -1,0 +1,13 @@
+{
+  "package": "molstar",
+  "version": "5.10.1",
+  "source": "npm",
+  "copiedRuntime": [
+    "build/viewer/molstar.js",
+    "build/viewer/molstar.css",
+    "build/viewer/theme/dark.css",
+    "build/viewer/favicon.ico",
+    "build/viewer/images"
+  ],
+  "policy": "official prebuilt runtime bytes; no local modifications"
+}

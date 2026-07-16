@@ -1,27 +1,31 @@
 package io.github.daylight00.molstarandroid
 
+import org.json.JSONArray
 import org.json.JSONObject
 
-/** Stable host-facing contract. Mol* implementation details stay behind app-bridge.js. */
+/** Stable platform-facing contract. Mol* implementation details stay behind app-bridge.js. */
 object ViewerContract {
     const val ORIGIN = "https://appassets.androidplatform.net"
     const val ENTRYPOINT = "$ORIGIN/assets/viewer/index.html"
 
+    /**
+     * Transport native files without interpreting their molecular format on Android.
+     * File names and MIME types are preserved so Mol* can use its own registry.
+     */
+    fun openFiles(batchId: String, files: JSONArray): JSONObject =
+        command(
+            "open-files",
+            JSONObject()
+                .put("batchId", batchId)
+                .put("files", files),
+        )
+
+    /** Explicit URL loading remains available for future native/custom controls. */
     fun openStructure(url: String, format: String, binary: Boolean): JSONObject =
         command(
             "open-structure",
             JSONObject()
                 .put("url", url)
-                .put("format", format)
-                .put("binary", binary),
-        )
-
-    fun openFile(url: String, name: String, format: String, binary: Boolean): JSONObject =
-        command(
-            "open-file",
-            JSONObject()
-                .put("url", url)
-                .put("name", name)
                 .put("format", format)
                 .put("binary", binary),
         )

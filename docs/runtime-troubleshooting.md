@@ -16,7 +16,7 @@ The first script records synchronous script failures and unhandled promise rejec
 
 There is no persistent Android app bar. When startup fails, a native recovery dialog provides **Reload** and **Diagnostics**. During normal operation, file loading and viewer reset operations use Mol*'s own UI.
 
-A structure is considered loaded only after the JavaScript bridge emits `command-completed` for `open-structure`. Selecting a file in the Android picker proves only that the host imported the file into private storage.
+A native file batch is considered handed to Mol* only after the JavaScript bridge emits `command-completed` for `open-files`. Selecting a file in Android proves only that the platform transport obtained the URI. Parsing, decompression, format recognition, and multi-file pairing are performed by Mol* through `viewer.loadFiles()`.
 
 ## Viewer controls overlap system bars
 
@@ -26,7 +26,7 @@ Applying padding directly to `WebView` is insufficient on some Chromium/WebView 
 
 ## Number at the upper-left does not update
 
-Mol*'s optional log panel prefixes each log entry with the time at which that entry was emitted. It is not a clock and therefore does not tick. The Android host disables the log panel on the mobile layout with `layoutShowLog: false`; normal diagnostic events remain available through Android logs and the startup recovery dialog.
+Mol*'s optional log panel prefixes each log entry with the time at which that entry was emitted. It is not a clock and therefore does not tick. The separate minimal adaptation layer disables the log panel with the official `layoutShowLog: false` Viewer option; normal diagnostic events remain available through Android logs and the startup recovery dialog.
 
 ## Mol* file button does nothing
 

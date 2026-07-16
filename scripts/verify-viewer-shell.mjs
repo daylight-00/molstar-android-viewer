@@ -3,12 +3,14 @@ import fs from 'node:fs';
 
 const indexPath = 'app/src/main/assets/viewer/index.html';
 const bridgePath = 'app/src/main/assets/viewer/app-bridge.js';
+const customizationPath = 'app/src/main/assets/viewer/customization.js';
 const diagnosticsPath = 'app/src/main/assets/viewer/boot-diagnostics.js';
 const themePath = 'app/src/main/assets/viewer/theme-controller.js';
 const vendorPath = 'app/src/main/assets/viewer/vendor/molstar/molstar.js';
 
 const index = fs.readFileSync(indexPath, 'utf8');
 const bridge = fs.readFileSync(bridgePath, 'utf8');
+const customization = fs.readFileSync(customizationPath, 'utf8');
 const diagnostics = fs.readFileSync(diagnosticsPath, 'utf8');
 const theme = fs.readFileSync(themePath, 'utf8');
 const vendor = fs.readFileSync(vendorPath, 'utf8');
@@ -34,19 +36,29 @@ if (vendor.includes('WebAssembly')) {
 const themeIndex = index.indexOf('src="theme-controller.js"');
 const diagnosticsIndex = index.indexOf('src="boot-diagnostics.js"');
 const vendorIndex = index.indexOf('src="vendor/molstar/molstar.js"');
+const customizationIndex = index.indexOf('src="customization.js"');
 const bridgeIndex = index.indexOf('src="app-bridge.js"');
 requireMatch(themeIndex >= 0, 'theme controller script is missing');
 requireMatch(diagnosticsIndex > themeIndex, 'theme controller must run before viewer boot diagnostics');
 requireMatch(vendorIndex > diagnosticsIndex, 'boot diagnostics must load before Mol*');
-requireMatch(bridgeIndex > vendorIndex, 'host bridge must load after Mol*');
+requireMatch(customizationIndex > vendorIndex, 'customization must load after the upstream Mol* bundle');
+requireMatch(bridgeIndex > customizationIndex, 'platform bridge must load after customization');
 requireMatch(/#app\s*\{[^}]*position:\s*absolute;[^}]*inset:\s*0;/s.test(index), '#app must establish a full-viewport positioned container');
+requireMatch(index.includes('id="custom-ui-root"'), 'empty custom UI root is missing');
+requireMatch(/#custom-ui-root:empty\s*\{[^}]*display:\s*none;/s.test(index), 'empty custom UI root must have no visual effect');
 requireMatch(diagnostics.includes("window.addEventListener('error'"), 'global JavaScript error capture is missing');
 requireMatch(diagnostics.includes("window.addEventListener('unhandledrejection'"), 'promise rejection capture is missing');
 requireMatch(bridge.includes('window.molstar.Viewer.create'), 'bridge must guard and invoke the viewer API through window.molstar');
+requireMatch(vendor.includes('loadFiles('), 'upstream Mol* bundle must expose the Viewer loadFiles capability');
+requireMatch(bridge.includes('viewer.loadFiles(files)'), 'native files must be delegated to Mol* loadFiles()');
+requireMatch(bridge.includes("case 'open-files'"), 'native multi-file bridge command is missing');
 requireMatch(bridge.includes("emit('ready'"), 'bridge must expose the ready event');
-requireMatch(bridge.includes('layoutShowLog: false'), 'mobile shell must hide the non-live Mol* log panel');
+requireMatch(!bridge.includes('layoutShowLog'), 'mobile customization must not be embedded in the platform bridge');
+requireMatch(customization.includes('layoutShowLog: false'), 'minimal mobile customization must hide the non-live log panel');
+requireMatch(customization.includes('viewportShowExpand: false'), 'minimal mobile customization must disable redundant browser expansion');
+requireMatch(customization.includes('root.replaceChildren()'), 'custom UI layer must initialize as an empty root');
 requireMatch(index.includes('vendor/molstar/theme/dark.css'), 'official Mol* dark stylesheet is missing');
 requireMatch(theme.includes('getSystemTheme'), 'theme controller must read the Android system theme');
 requireMatch(theme.includes('MolTheme'), 'theme controller must expose the stable theme adapter');
 
-console.log('Viewer shell contract passed.');
+console.log('Viewer layer contract passed.');

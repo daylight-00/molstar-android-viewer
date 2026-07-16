@@ -35,6 +35,17 @@
             inset: 0;
         }
 
+        #custom-ui-root {
+            position: absolute;
+            inset: 0;
+            z-index: 100;
+            pointer-events: none;
+        }
+
+        #custom-ui-root:empty {
+            display: none;
+        }
+
         #boot-status {
             position: absolute;
             inset: 0;
@@ -61,9 +72,11 @@
 </head>
 <body>
 <div id="app"></div>
+<div id="custom-ui-root"></div>
 <div id="boot-status" data-state="loading" role="status">Starting Mol*…</div>
 <script src="boot-diagnostics.js"></script>
 <script src="vendor/molstar/molstar.js"></script>
+<script src="customization.js"></script>
 <script src="app-bridge.js"></script>
 </body>
 </html>

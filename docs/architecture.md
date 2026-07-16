@@ -1,54 +1,98 @@
 # Architecture
 
-The project intentionally stops at host integration.
+The project is an Android host for upstream Mol*, not an independent molecular viewer implementation.
+
+## Three layers
 
 ```text
-Android Activity / file chooser / share intents / lifecycle
-                    |
-             ViewerContract.kt
-                    |
-              app-bridge.js
-                    |
-          Mol* Viewer / PluginContext
+Layer 3  Minimal adaptation / optional custom UI
+                         |
+Layer 2  Android platform integration and stable bridge
+                         |
+Layer 1  Official, unmodified Mol* viewer runtime
 ```
 
-## Stable boundary
+### Layer 1: upstream Mol*
 
-Android code sends product-level JSON commands only:
+`app/src/main/assets/viewer/vendor/molstar/` contains the official prebuilt viewer runtime from the `molstar` npm package. It is not edited by hand. JavaScript, stylesheets, themes, images, and other runtime assets are replaced by `scripts/sync-molstar-assets.sh` when the upstream version changes.
 
+Layer 1 owns:
+
+- molecular and volume parsing
+- compressed/archive file handling
+- topology/coordinates pairing
+- representations, selections, camera, and state
+- sessions and snapshots
+- the normal user interface
+
+The Android project does not fork Mol*, patch `molstar.js`, patch upstream CSS, or depend on Mol* DOM class names.
+
+### Layer 2: Android integration
+
+```text
+Android Activity / lifecycle / system UI / native files
+                         |
+                  ViewerContract.kt
+                         |
+                    app-bridge.js
+                         |
+                 public Mol* Viewer API
+```
+
+Layer 2 connects platform capabilities without reimplementing Mol* behavior:
+
+- WebView lifecycle and renderer recovery
+- system-bar and display-cutout insets
+- Android file picker
+- `VIEW`, `SEND`, and `SEND_MULTIPLE` intents
+- transport of `content://` bytes, original names, and MIME types
+- system light/dark mode selection of official Mol* stylesheets
+- external URL routing
+- startup diagnostics
+
+Native files are copied into a temporary private transport directory and exposed through `WebViewAssetLoader`. `app-bridge.js` fetches them, creates browser `File` objects with their original names, and calls `viewer.loadFiles(files)`. Android does not recognize extensions, decide binary/text mode, decompress gzip, or choose Mol* format keys.
+
+The stable product-level command boundary currently includes:
+
+- `open-files`
 - `open-structure`
-- `open-file`
 - `open-pdb`
 - `open-alphafold`
 - `clear`
 
-Mol* internal APIs are isolated in `app-bridge.js`. Future native UI controls should add commands to this contract rather than calling `viewer.plugin.*` from Kotlin.
+Mol* internals remain isolated in `app-bridge.js`. Future native controls add stable commands rather than calling `viewer.plugin.*` from Kotlin.
 
-## Current non-goals
+### Layer 3: minimal adaptation
 
-- Native representation or selection UI
-- PyMOL-compatible command console
+`customization.js` is intentionally separate from both upstream Mol* and the Android bridge. It currently contains only explicit mobile policy:
+
+- hide the non-live log panel
+- hide the redundant browser expansion control
+- initialize an empty `#custom-ui-root`
+
+The custom root is absent from layout while empty and does not intercept pointer input. Future custom UI mounts there without inserting elements into Mol* DOM or modifying upstream stylesheets.
+
+## Upgrade boundary
+
+A normal Mol* upgrade should be:
+
+```bash
+bash scripts/sync-molstar-assets.sh <version>
+bash scripts/verify.sh
+```
+
+Expected code impact:
+
+1. replace Layer 1 as a unit;
+2. verify the small set of public Viewer capabilities used by Layer 2;
+3. change only `app-bridge.js` if an upstream public API changed;
+4. leave Android platform code and Layer 3 policy unchanged.
+
+## Non-goals
+
 - Mol* source fork
-- Native molecular renderer
-- Android-side molecular data model
-
-## Native UI policy
-
-The normal application surface is the Mol* viewer itself. The Android action bar is removed. System-bar and display-cutout insets are applied to an outer native `FrameLayout`, while the WebView fills the container's safe content area.
-
-The mobile viewer keeps Mol* controls and sequence UI but disables the log panel. Its displayed timestamps describe individual log events; they are not a live clock.
-
-Android UI appears only for host-level recovery:
-
-- reload after WebView or Mol* startup failure
-- startup diagnostics
-
-Mol* file inputs are delegated to Android through `WebChromeClient.onShowFileChooser`. Android `VIEW` and `SEND` intents remain supported independently of the visible viewer UI.
-
-## Theme boundary
-
-The APK vendors the official default and dark Mol* CSS bundles. `theme-controller.js` is a thin adapter that selects one based on Android `uiMode`; `MainActivity` forwards runtime system-theme changes without reloading the molecular state.
-
-## Host file recognition
-
-Android share/open intents validate file names against Mol*'s built-in trajectory extensions. Gzip-wrapped files are decompressed in private storage while preserving the inner extension before the stable `open-file` command is sent to the viewer. Mol*'s own file control remains authoritative for multi-file topology/trajectory workflows and other registered data formats.
+- native molecular renderer or data model
+- native representation/selection UI
+- Android copy of Mol*'s format registry
+- PyMOL-compatible command console
+- CSS or DOM patches tied to a specific Mol* release

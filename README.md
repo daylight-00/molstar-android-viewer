@@ -2,38 +2,56 @@
 
 A thin Android host for the official Mol* Viewer bundle.
 
-## Scope
+## Design
 
-The application keeps Mol*'s complete built-in UI. Android handles only platform integration:
+The project deliberately trusts upstream Mol* and separates responsibilities into three layers:
 
-- APK lifecycle and WebView hosting
-- local structure files through Mol*'s own file controls and Android share/open intents
-- `VIEW` and `SEND` intents with Mol* trajectory-extension recognition
-- automatic use of the official Mol* dark stylesheet when Android is in dark mode
-- PDB ID loading
-- system-bar safe-area handling through an outer host container, without a persistent native app bar
-- native reload and diagnostics controls only when WebView or Mol* startup fails
-- an intentionally small JSON bridge for possible future UI integration
+```text
+1. official, unmodified Mol* viewer runtime
+2. complete Android platform integration through a stable adapter
+3. minimal mobile adaptation and an empty optional custom UI root
+```
 
-The project does not fork Mol* and does not implement molecular rendering natively.
+Mol* owns molecular formats, decompression, multi-file workflows, rendering, analysis, state, and the normal UI. Android owns lifecycle, native file access, system UI, theme signals, and recovery. The project does not fork Mol*, modify its generated JavaScript/CSS, or implement molecular rendering natively.
 
 ## Runtime layout
 
 ```text
 APK
 └── Activity
+    ├── safe-area FrameLayout
     └── Android System WebView
-        ├── app-bridge.js
-        └── official Mol* viewer bundle
+        ├── vendor/molstar/       official Layer 1
+        ├── app-bridge.js         Layer 2 adapter
+        ├── theme-controller.js   Layer 2 theme connection
+        ├── customization.js      Layer 3 policy
+        ├── #app                  upstream Mol* UI
+        └── #custom-ui-root       empty by default
 ```
 
-Files selected inside Mol* are returned through `WebChromeClient.onShowFileChooser`. The host recognizes the built-in Mol* trajectory extensions (`pdb`, `ent`, `pdbqt`, `pqr`, `cif`, `mmcif`, `mcif`, `bcif`, `gro`, `xyz`, `data`, `lammpstrj`, `mol`, `sdf`, `sd`, and `mol2`) and the same extensions wrapped in gzip. Files received from Android `VIEW` or `SEND` intents are copied from `content://` URIs into private app storage and exposed through `WebViewAssetLoader` under the HTTPS-like `appassets.androidplatform.net` origin.
+### Native files
 
-The Android action bar is intentionally absent. Mol* owns the normal viewer UI; Android shows native recovery controls only when startup fails.
+Mol*'s own Open File control is connected to Android through `WebChromeClient.onShowFileChooser`.
+
+Files received through Android `VIEW`, `SEND`, or `SEND_MULTIPLE` are transported without Android-side format interpretation:
+
+```text
+content:// URI
+→ temporary private bytes + original file name/MIME type
+→ browser File object
+→ viewer.loadFiles(files)
+→ Mol* registry and loaders
+```
+
+This preserves upstream support for structures, volumes, compressed files, sessions, archives, and multi-file topology/trajectory workflows without duplicating an extension table in Kotlin.
+
+### Theme and mobile adaptation
+
+Android system light/dark mode selects the official `molstar.css` or `theme/dark.css` stylesheet without recreating molecular state. The separate customization layer currently hides the non-live log panel and redundant browser expansion control. No upstream DOM or stylesheet is patched.
 
 ## Canonical build host
 
-Android builds run on the separate Linux workstation.
+Android builds run on the Linux workstation.
 
 ```text
 checkout: $HOME/projects/molstar-android-viewer-bootstrap
@@ -46,47 +64,38 @@ Build and verify:
 bash scripts/linux-bootstrap-and-publish.sh
 ```
 
-The SDK path can be overridden with `ANDROID_SDK_ROOT`, `ANDROID_HOME`, or `ANDROID_SDK_CANDIDATE`.
-
-Build and fast-forward push to the canonical GitHub `origin` (`daylight-00/molstar-android-viewer`) by default:
+Build and fast-forward push to the canonical private GitHub repository by default:
 
 ```bash
 PUBLISH=1 VISIBILITY=private bash scripts/linux-bootstrap-and-publish.sh
 ```
 
-## Verify
+## Upstream upgrade
 
 ```bash
+bash scripts/sync-molstar-assets.sh <molstar-version>
 bash scripts/verify.sh
 ```
 
+The vendor runtime is replaced as a unit. Compatibility is intentionally concentrated in `app-bridge.js` so routine Mol* releases do not require changes to Android platform code.
+
 ## Android runtime smoke test
 
-The adb gate is optional and deferred until the Linux workstation is configured for device access. With exactly one authorized adb device attached:
+With exactly one authorized adb device attached:
 
 ```bash
 bash scripts/device/verify-debug-apk.sh
 ```
 
-The smoke test installs the debug APK, waits for the Mol* `ready` event, sends a local PDB through an Android `ACTION_VIEW` content URI, waits for the `open-structure` completion event, rejects viewer error events, and preserves logcat, screenshot, device, WebView-provider, package, APK, and fixture evidence below `~/Downloads/hw-t-device-results/`.
-
-`VERIFY_BUILD=auto` builds when both the Gradle wrapper and SDK are available. Use `VERIFY_BUILD=always` to require a build or `VERIFY_BUILD=never` for static verification only.
+The smoke gate installs the APK, waits for Mol* readiness, sends a local PDB through an Android content URI, waits for the `open-files` command to complete, rejects viewer errors, and preserves bounded device evidence.
 
 ## Collaboration
 
-- Google Drive carries bounded assistant/user `.tar.zst` packages and complete result archives.
-- The Linux workstation uses `rclone`; the assistant uses the Google Drive connector against the same exchange folders.
-- The Android device is runtime evidence only and is accessed from Linux with `adb`; the repository never lives on the device.
-- Termux and rsync are not part of this workflow.
-- Git remains the canonical source and history authority.
-- Assistant changes are delivered as one self-contained Bash runner; only its initial `rclone copyto` is manual.
-- Result uploads are staged below `~/Downloads` before rclone access.
-- Verified runner commits are fast-forward pushed to `origin/main` by default; divergence stops before push.
+- Git is the canonical source and history authority.
+- The Linux workstation is the canonical Android build host.
+- Google Drive carries bounded runner and result archives.
+- The Android device is runtime evidence only.
+- Assistant changes are delivered as one self-contained Bash runner.
+- Verified commits are fast-forward pushed to `origin/main`; divergence stops before push.
 
-See:
-
-- `docs/architecture.md`
-- `docs/linux-handoff.md`
-- `docs/COLLABORATION_PROTOCOL.md`
-- `docs/runtime-troubleshooting.md`
-- `docs/GITHUB_COLLABORATION_WORKFLOW.md`
+See `docs/architecture.md`, `docs/upstream-molstar.md`, and `docs/COLLABORATION_PROTOCOL.md`.
