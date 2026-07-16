@@ -40,5 +40,6 @@ requireMatch(diagnostics.includes("window.addEventListener('error'"), 'global Ja
 requireMatch(diagnostics.includes("window.addEventListener('unhandledrejection'"), 'promise rejection capture is missing');
 requireMatch(bridge.includes('window.molstar.Viewer.create'), 'bridge must guard and invoke the viewer API through window.molstar');
 requireMatch(bridge.includes("emit('ready'"), 'bridge must expose the ready event');
+requireMatch(bridge.includes('layoutShowLog: false'), 'mobile shell must hide the non-live Mol* log panel');
 
 console.log('Viewer shell contract passed.');

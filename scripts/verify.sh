@@ -45,6 +45,13 @@ grep -q 'WebViewAssetLoader' app/src/main/java/io/github/daylight00/molstarandro
 grep -q 'onShowFileChooser' app/src/main/java/io/github/daylight00/molstarandroid/MainActivity.kt
 grep -q 'WindowInsets.Type.systemBars()' app/src/main/java/io/github/daylight00/molstarandroid/MainActivity.kt
 grep -q 'WindowInsets.Type.displayCutout()' app/src/main/java/io/github/daylight00/molstarandroid/MainActivity.kt
+grep -q 'private lateinit var rootView: FrameLayout' app/src/main/java/io/github/daylight00/molstarandroid/MainActivity.kt
+grep -q 'rootView.addView(webView)' app/src/main/java/io/github/daylight00/molstarandroid/MainActivity.kt
+grep -q 'layoutShowLog: false' app/src/main/assets/viewer/app-bridge.js
+if grep -q 'applySystemBarInsets(this)' app/src/main/java/io/github/daylight00/molstarandroid/MainActivity.kt; then
+  echo 'system insets must be applied to the outer host container, not the WebView' >&2
+  exit 1
+fi
 grep -q 'android:windowNoTitle">true' app/src/main/res/values/styles.xml
 if grep -q 'onCreateOptionsMenu' app/src/main/java/io/github/daylight00/molstarandroid/MainActivity.kt; then
   echo 'persistent Android options menu must remain absent' >&2

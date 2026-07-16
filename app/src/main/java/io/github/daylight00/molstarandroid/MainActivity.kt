@@ -23,6 +23,7 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.webkit.WebViewAssetLoader
 import org.json.JSONObject
@@ -30,6 +31,7 @@ import java.io.File
 import java.util.UUID
 
 class MainActivity : Activity() {
+    private lateinit var rootView: FrameLayout
     private lateinit var webView: WebView
     private lateinit var assetLoader: WebViewAssetLoader
     private lateinit var viewerFilesDir: File
@@ -38,10 +40,23 @@ class MainActivity : Activity() {
     private var lastViewerError: String? = null
     private var webFileChooserCallback: ValueCallback<Array<Uri>>? = null
     private var recoveryDialog: AlertDialog? = null
+    private var lastSystemInsets = "unapplied"
     private val pendingCommands = ArrayDeque<JSONObject>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        rootView = FrameLayout(this).apply {
+            layoutParams = ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+            )
+            setBackgroundColor(Color.rgb(16, 20, 24))
+            clipToPadding = true
+        }
+        setContentView(rootView)
+        applySystemBarInsets(rootView)
+        rootView.requestApplyInsets()
 
         viewerFilesDir = File(filesDir, "viewer-files").apply { mkdirs() }
         assetLoader = WebViewAssetLoader.Builder()
@@ -62,12 +77,11 @@ class MainActivity : Activity() {
         viewerBootFailed = false
         lastViewerError = null
         webView = WebView(this).apply {
-            layoutParams = ViewGroup.LayoutParams(
+            layoutParams = FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT,
             )
             setBackgroundColor(Color.rgb(16, 20, 24))
-            applySystemBarInsets(this)
             settings.apply {
                 javaScriptEnabled = true
                 domStorageEnabled = true
@@ -170,29 +184,31 @@ class MainActivity : Activity() {
             }
         }
 
-        setContentView(webView)
-        webView.requestApplyInsets()
+        rootView.addView(webView)
         if (savedInstanceState == null || webView.restoreState(savedInstanceState) == null) {
             webView.loadUrl(ViewerContract.ENTRYPOINT)
         }
     }
 
-    private fun applySystemBarInsets(view: WebView) {
-        view.setOnApplyWindowInsetsListener { target, insets ->
+    private fun applySystemBarInsets(container: FrameLayout) {
+        container.setOnApplyWindowInsetsListener { target, insets ->
             if (Build.VERSION.SDK_INT >= 30) {
                 val bars = insets.getInsets(
                     WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout(),
                 )
                 target.setPadding(bars.left, bars.top, bars.right, bars.bottom)
+                lastSystemInsets = "${bars.left},${bars.top},${bars.right},${bars.bottom}"
+                Log.d(TAG, "Applied host insets: $lastSystemInsets")
                 WindowInsets.CONSUMED
             } else {
                 @Suppress("DEPRECATION")
-                target.setPadding(
-                    insets.systemWindowInsetLeft,
-                    insets.systemWindowInsetTop,
-                    insets.systemWindowInsetRight,
-                    insets.systemWindowInsetBottom,
-                )
+                val left = insets.systemWindowInsetLeft
+                val top = insets.systemWindowInsetTop
+                val right = insets.systemWindowInsetRight
+                val bottom = insets.systemWindowInsetBottom
+                target.setPadding(left, top, right, bottom)
+                lastSystemInsets = "$left,$top,$right,$bottom"
+                Log.d(TAG, "Applied legacy host insets: $lastSystemInsets")
                 @Suppress("DEPRECATION")
                 insets.consumeSystemWindowInsets()
             }
@@ -334,6 +350,7 @@ class MainActivity : Activity() {
             appendLine("pendingCommands=${pendingCommands.size}")
             appendLine("url=${webView.url ?: "none"}")
             appendLine("webView=$webViewVersion")
+            appendLine("insets=$lastSystemInsets")
             append("lastError=${lastViewerError ?: "none"}")
         }
         AlertDialog.Builder(this)

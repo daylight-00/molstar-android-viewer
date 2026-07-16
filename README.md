@@ -10,7 +10,7 @@ The application keeps Mol*'s complete built-in UI. Android handles only platform
 - local structure files through Mol*'s own file controls and Android share/open intents
 - `VIEW` and `SEND` intents
 - PDB ID loading
-- system-bar inset handling without a persistent native app bar
+- system-bar safe-area handling through an outer host container, without a persistent native app bar
 - native reload and diagnostics controls only when WebView or Mol* startup fails
 - an intentionally small JSON bridge for possible future UI integration
 

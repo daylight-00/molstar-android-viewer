@@ -33,7 +33,9 @@ Mol* internal APIs are isolated in `app-bridge.js`. Future native UI controls sh
 
 ## Native UI policy
 
-The normal application surface is the Mol* viewer itself. The Android action bar is removed and system-bar plus display-cutout insets are applied directly to the WebView.
+The normal application surface is the Mol* viewer itself. The Android action bar is removed. System-bar and display-cutout insets are applied to an outer native `FrameLayout`, while the WebView fills the container's safe content area.
+
+The mobile viewer keeps Mol* controls and sequence UI but disables the log panel. Its displayed timestamps describe individual log events; they are not a live clock.
 
 Android UI appears only for host-level recovery:
 

@@ -67,6 +67,7 @@
         viewer = await window.molstar.Viewer.create('app', {
             layoutIsExpanded: true,
             layoutShowControls: true,
+            layoutShowLog: false,
             viewportShowExpand: false,
             pdbProvider: 'rcsb',
             emdbProvider: 'rcsb',
