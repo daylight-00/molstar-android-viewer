@@ -12,7 +12,7 @@ boot-diagnostics.js
   -> app-bridge.js
 ```
 
-The first script records synchronous script failures and unhandled promise rejections before the vendor bundle runs. Startup failures remain visible in the WebView and are also sent to Android through `MolAndroid.postEvent`.
+The first script records synchronous script failures and unhandled promise rejections before the vendor bundle runs. Normal startup is intentionally silent with no custom loading overlay. Startup failures become visible in the WebView and are also sent to Android through `MolAndroid.postEvent`.
 
 There is no persistent Android app bar. When startup fails, a native recovery dialog provides **Reload** and **Diagnostics**. During normal operation, file loading and viewer reset operations use Mol*'s own UI.
 

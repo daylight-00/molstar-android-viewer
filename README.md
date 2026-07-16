@@ -47,7 +47,7 @@ This preserves upstream support for structures, volumes, compressed files, sessi
 
 ### Theme and mobile adaptation
 
-Android system light/dark mode selects the official `molstar.css` or `theme/dark.css` stylesheet without recreating molecular state. The separate customization layer currently hides the non-live log panel and redundant browser expansion control. No upstream DOM or stylesheet is patched.
+Android system light/dark mode selects the official `molstar.css` or `theme/dark.css` stylesheet without recreating molecular state. The separate customization layer currently applies exactly one active policy: hide the non-live log panel. Mol* retains its upstream expansion control and other Viewer defaults. Normal startup has no custom loading overlay; the host diagnostic surface appears only after a terminal startup failure. No upstream DOM or stylesheet is patched.
 
 ## Canonical build host
 

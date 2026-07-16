@@ -99,6 +99,7 @@ MANIFEST=app/src/main/AndroidManifest.xml
 BUILD=app/build.gradle.kts
 BRIDGE=app/src/main/assets/viewer/app-bridge.js
 CUSTOM=app/src/main/assets/viewer/customization.js
+INDEX=app/src/main/assets/viewer/index.html
 
 grep -q 'window.MolApp' "$BRIDGE"
 grep -q 'viewer.loadFiles(files)' "$BRIDGE"
@@ -117,6 +118,15 @@ grep -q 'resetNativeFileTransportDirectory' "$MAIN"
 grep -q 'fun openFiles' "$CONTRACT"
 grep -q 'fun openAlphaFold' "$CONTRACT"
 grep -q 'layoutShowLog: false' "$CUSTOM"
+if grep -q 'viewportShowExpand' "$CUSTOM"; then
+  echo 'layoutShowLog must be the only active custom Viewer option' >&2
+  exit 1
+fi
+grep -Eq '<div id="boot-status"[^>]* hidden' "$INDEX"
+if grep -q 'Starting Mol\*' "$INDEX"; then
+  echo 'custom loading screen must remain disabled' >&2
+  exit 1
+fi
 grep -q 'android.intent.action.SEND_MULTIPLE' "$MANIFEST"
 grep -q 'android:label="${appLabel}"' "$MANIFEST"
 grep -q 'create("stable")' "$BUILD"

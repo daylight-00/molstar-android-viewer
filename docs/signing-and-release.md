@@ -26,6 +26,12 @@ export MOLSTAR_ANDROID_KEY_PASSWORD='...'
 
 For GitHub Actions, store the keystore bytes as an encrypted secret, decode them into `$RUNNER_TEMP`, and point `MOLSTAR_ANDROID_KEYSTORE_FILE` at that temporary path. The workflow should delete it through normal runner teardown and never upload it as an artifact.
 
+## Play Protect and sideloaded builds
+
+An APK installed outside Google Play can trigger a Play Protect scan or unknown-app prompt, especially when Google has not evaluated that exact APK before. A scan recommendation is not the same as a harmful-app verdict. A message that explicitly says the app is harmful, blocked, or removed must be treated as a release failure and investigated before distribution.
+
+Every invocation of `scripts/ci/simulate-actions.sh` creates a new ephemeral certificate. APKs produced by that simulation are test artifacts only: they do not accumulate a stable signing identity, cannot update a build signed by another simulation key, and must never be promoted as the long-lived stable release. The permanent sideload key is required before real CI release publication. Keeping one permanent certificate preserves Android update identity, but does not guarantee that Play Protect will never scan an APK distributed outside Google Play.
+
 ## Version policy
 
 `version.properties` is the host baseline. Automated candidate builds should set a monotonically increasing `MOLSTAR_ANDROID_VERSION_CODE`, normally derived from the workflow run number. Stable promotion must use a value greater than every previously installed stable version code.
@@ -33,8 +39,8 @@ For GitHub Actions, store the keystore bytes as an encrypted secret, decode them
 The default name embeds both host and upstream versions:
 
 ```text
-0.2.0-molstar.5.10.1
-0.2.0-molstar.5.10.1-candidate
+0.2.1-molstar.5.10.1
+0.2.1-molstar.5.10.1-candidate
 ```
 
 CI may append run information by setting `MOLSTAR_ANDROID_VERSION_NAME` before Gradle configuration.

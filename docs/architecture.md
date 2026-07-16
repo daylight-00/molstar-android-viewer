@@ -48,7 +48,7 @@ Layer 2 connects platform capabilities without reimplementing Mol* behavior:
 - transport of `content://` bytes, original names, and MIME types
 - system light/dark mode selection of official Mol* stylesheets
 - external URL routing
-- startup diagnostics
+- startup diagnostics that remain invisible during normal startup and surface only terminal failures
 
 Native files are copied into a temporary private transport directory and exposed through `WebViewAssetLoader`. `app-bridge.js` fetches them, creates browser `File` objects with their original names, and calls `viewer.loadFiles(files)`. Android does not recognize extensions, decide binary/text mode, decompress gzip, or choose Mol* format keys.
 
@@ -67,10 +67,9 @@ Mol* internals remain isolated in `app-bridge.js`. Future native controls add st
 `customization.js` is intentionally separate from both upstream Mol* and the Android bridge. It currently contains only explicit mobile policy:
 
 - hide the non-live log panel
-- hide the redundant browser expansion control
-- initialize an empty `#custom-ui-root`
+- initialize an empty `#custom-ui-root` for future optional modules
 
-The custom root is absent from layout while empty and does not intercept pointer input. Future custom UI mounts there without inserting elements into Mol* DOM or modifying upstream stylesheets.
+The custom root is absent from layout while empty and does not intercept pointer input. `layoutShowLog: false` is the only active custom Viewer option; all other controls use upstream defaults. Future custom UI mounts there without inserting elements into Mol* DOM or modifying upstream stylesheets.
 
 ## Upgrade boundary
 

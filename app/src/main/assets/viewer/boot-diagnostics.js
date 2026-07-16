@@ -5,6 +5,9 @@
     let ready = false;
     let terminalFailure = false;
 
+    // Normal startup is intentionally silent; this surface is error-only.
+    if (statusNode) statusNode.hidden = true;
+
     function stringifyReason(reason) {
         if (reason instanceof Error) return reason.stack || reason.message;
         if (typeof reason === 'string') return reason;

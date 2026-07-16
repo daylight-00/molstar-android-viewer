@@ -54,9 +54,20 @@ requireMatch(bridge.includes('viewer.loadFiles(files)'), 'native files must be d
 requireMatch(bridge.includes("case 'open-files'"), 'native multi-file bridge command is missing');
 requireMatch(bridge.includes("emit('ready'"), 'bridge must expose the ready event');
 requireMatch(!bridge.includes('layoutShowLog'), 'mobile customization must not be embedded in the platform bridge');
+const optionsMatch = customization.match(/const viewerOptions = Object\.freeze\(\{([\s\S]*?)\}\);/);
+requireMatch(optionsMatch, 'customization viewerOptions object is missing');
+const optionKeys = [...optionsMatch[1].matchAll(/^\s*([A-Za-z_$][\w$]*)\s*:/gm)].map(match => match[1]);
+requireMatch(
+    optionKeys.length === 1 && optionKeys[0] === 'layoutShowLog',
+    `layoutShowLog must be the only active custom Viewer option; found: ${optionKeys.join(', ') || 'none'}`,
+);
 requireMatch(customization.includes('layoutShowLog: false'), 'minimal mobile customization must hide the non-live log panel');
-requireMatch(customization.includes('viewportShowExpand: false'), 'minimal mobile customization must disable redundant browser expansion');
+requireMatch(!customization.includes('viewportShowExpand'), 'Mol* browser expansion control must use the upstream default');
 requireMatch(customization.includes('root.replaceChildren()'), 'custom UI layer must initialize as an empty root');
+requireMatch(/<div id="boot-status"[^>]*\shidden(?:\s|>)/.test(index), 'boot diagnostic surface must be hidden during normal startup');
+requireMatch(index.includes('role="alert"'), 'boot diagnostic surface must be error-only alert semantics');
+requireMatch(!index.includes('Starting Mol*'), 'custom loading screen must remain disabled');
+requireMatch(diagnostics.includes('Normal startup is intentionally silent'), 'boot diagnostics must document silent normal startup');
 requireMatch(index.includes('vendor/molstar/theme/dark.css'), 'official Mol* dark stylesheet is missing');
 requireMatch(theme.includes('getSystemTheme'), 'theme controller must read the Android system theme');
 requireMatch(theme.includes('MolTheme'), 'theme controller must expose the stable theme adapter');

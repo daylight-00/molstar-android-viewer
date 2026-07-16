@@ -3,9 +3,9 @@
 
     // Layer 3: explicit, minimal Android/mobile adaptation only.
     // Keep this separate from both the upstream Mol* bundle and the platform bridge.
+    // The sole active product policy is hiding Mol*'s non-live log panel.
     const viewerOptions = Object.freeze({
         layoutShowLog: false,
-        viewportShowExpand: false,
     });
 
     function mount(context) {
@@ -16,7 +16,7 @@
     }
 
     window.MolCustomization = Object.freeze({
-        contractVersion: 1,
+        contractVersion: 2,
         viewerOptions,
         mount,
     });
