@@ -20,12 +20,16 @@ git config --global user.email "hwjang00@snu.ac.kr"
 git config user.name "daylight-00"
 git config user.email "hwjang00@snu.ac.kr"
 
-for cmd in git java node sha256sum; do
+for cmd in git java sha256sum; do
   command -v "$cmd" >/dev/null || {
     echo "Missing required command: $cmd" >&2
     exit 1
   }
 done
+
+# shellcheck source=scripts/lib/node-env.sh
+source "$ROOT/scripts/lib/node-env.sh"
+require_node_lts "$ROOT"
 
 [[ -x ./gradlew ]] || {
   echo "The tracked Gradle wrapper is missing or not executable." >&2

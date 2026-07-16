@@ -8,6 +8,7 @@ ANDROID_SDK_CANDIDATE="${ANDROID_SDK_CANDIDATE:-$HOME/opt/Android}"
 export ANDROID_SDK_CANDIDATE
 
 required=(
+  .nvmrc
   app/src/main/assets/viewer/index.html
   app/src/main/assets/viewer/app-bridge.js
   app/src/main/assets/viewer/customization.js
@@ -22,6 +23,7 @@ required=(
   app/src/main/assets/viewer/vendor/molstar/SHA256SUMS
   scripts/device/fixtures/minimal-ala.pdb
   scripts/device/verify-debug-apk.sh
+  scripts/lib/node-env.sh
   scripts/verify-viewer-shell.mjs
   scripts/verify-native-file-bridge.mjs
 )
@@ -29,7 +31,11 @@ for path in "${required[@]}"; do
   [[ -s "$path" ]] || { echo "missing or empty: $path" >&2; exit 1; }
 done
 
-for cmd in node sha256sum grep diff find sort; do
+# shellcheck source=scripts/lib/node-env.sh
+source "$ROOT/scripts/lib/node-env.sh"
+require_node_lts "$ROOT"
+
+for cmd in sha256sum grep diff find sort; do
   command -v "$cmd" >/dev/null || { echo "missing command: $cmd" >&2; exit 1; }
 done
 
@@ -39,6 +45,7 @@ node --check app/src/main/assets/viewer/boot-diagnostics.js
 node --check app/src/main/assets/viewer/theme-controller.js
 node scripts/verify-viewer-shell.mjs
 node scripts/verify-native-file-bridge.mjs
+bash -n scripts/lib/node-env.sh
 bash -n scripts/sync-molstar-assets.sh
 bash -n scripts/device/install-debug-apk.sh
 bash -n scripts/device/verify-debug-apk.sh

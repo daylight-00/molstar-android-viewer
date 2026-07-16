@@ -17,6 +17,17 @@ app/src/main/assets/viewer/vendor/molstar/
 
 The directory contains official prebuilt viewer runtime files, upstream license/provenance metadata, and `SHA256SUMS`. Source maps are excluded from the APK because they are development metadata, not runtime behavior.
 
+## Toolchain
+
+Upstream synchronization and JavaScript contract tests target the tracked Node.js 24 LTS toolchain. `.nvmrc` contains the canonical major version, and verification requires Node 24.x with npm 11 or newer. The repository intentionally uses native ESM, top-level `await`, `Blob`, `File`, and `fetch` rather than compatibility polyfills for obsolete Node releases.
+
+```bash
+nvm install
+nvm use
+node --version
+npm --version
+```
+
 ## Upgrade
 
 ```bash

@@ -58,6 +58,20 @@ checkout: $HOME/projects/molstar-android-viewer-bootstrap
 SDK:      $HOME/opt/Android
 ```
 
+JavaScript tooling is pinned to the current canonical LTS line:
+
+```text
+Node.js: 24.x
+npm:     11 or newer
+```
+
+The tracked `.nvmrc` is authoritative. Activate it before verification or upstream synchronization:
+
+```bash
+nvm install
+nvm use
+```
+
 Build and verify:
 
 ```bash

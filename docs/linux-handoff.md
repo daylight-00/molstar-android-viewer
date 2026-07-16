@@ -12,6 +12,18 @@ The default Android SDK location is:
 $HOME/opt/Android
 ```
 
+The canonical JavaScript toolchain is tracked in `.nvmrc` and currently requires Node.js 24.x with npm 11 or newer. Activate it in each fresh shell before running project scripts:
+
+```bash
+cd "$HOME/projects/molstar-android-viewer-bootstrap"
+nvm install
+nvm use
+node --version
+npm --version
+```
+
+The repository deliberately does not maintain Node 12 compatibility shims.
+
 Run:
 
 ```bash
