@@ -46,22 +46,15 @@ required=(
   .github/workflows/ci.yml
   .github/workflows/molstar-update.yml
   .github/workflows/promote.yml
+  README.md
   CONTRIBUTING.md
   SECURITY.md
   .github/PULL_REQUEST_TEMPLATE.md
   .github/ISSUE_TEMPLATE/bug-report.yml
-  .github/ISSUE_TEMPLATE/feature-request.yml
   .github/ISSUE_TEMPLATE/config.yml
-  docs/user/README.md
-  docs/user/troubleshooting.md
-  docs/project/README.md
-  docs/project/naming-and-branding.md
-  project.properties
-  docs/development/README.md
-  docs/development/architecture.md
-  docs/development/automation.md
-  docs/development/releasing.md
-  docs/development/upstream-molstar.md
+  docs/android.md
+  docs/architecture.md
+  docs/maintenance.md
   scripts/verify-public-boundary.mjs
 )
 for path in "${required[@]}"; do

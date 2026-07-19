@@ -58,7 +58,7 @@ const notes = `# ${release.title}\n\n` +
   `- Commit: ${release.targetCommit}\n` +
   `- APK SHA-256: ${release.apkSha256}\n` +
   `- Signing certificate SHA-256: ${release.certificateSha256}\n\n` +
-  `This package contains the official unmodified Mol* Viewer runtime, the Android integration layer, and the minimal customization layer.\n`;
+  `This package contains the unmodified upstream Mol* Viewer runtime, the Android integration layer, and the minimal customization layer.\n`;
 fs.writeFileSync(path.join(outputDir, 'release-notes.md'), notes);
 NODE
 (

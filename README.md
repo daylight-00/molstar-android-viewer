@@ -1,72 +1,51 @@
 # Mol* Viewer for Android
 
-[![CI](https://github.com/daylight-00/molstar-viewer-android/actions/workflows/ci.yml/badge.svg)](https://github.com/daylight-00/molstar-viewer-android/actions/workflows/ci.yml)
+[![CI](https://github.com/molstar/molstar-viewer-android/actions/workflows/ci.yml/badge.svg)](https://github.com/molstar/molstar-viewer-android/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-An independently maintained Android host for the official Mol* Viewer runtime.
+Mol* Viewer packaged as an Android application with native device-file integration.
 
-The application packages the upstream prebuilt Viewer without modifying Mol* JavaScript, CSS, molecular formats, rendering, state management, or normal Viewer UI. The Android layer adds device-file integration, lifecycle handling, system insets, theme signals, and bounded startup recovery.
+The application uses the upstream prebuilt Mol* Viewer runtime without patching its JavaScript, CSS, molecular formats, rendering, state management, or normal user interface.
 
-> **Mol* Viewer for Android** is independently maintained and is not presented as an official Mol* release. The current project title and installed application name **Mol* Viewer** remain subject to naming and branding guidance from the Mol* maintainers.
+## Android integration
 
-## Project status
-
-The source repository and continuous-integration pipeline are public. A stable APK has not been published yet. The first stable release is blocked until Mol* maintainer naming and branding guidance is recorded, the permanent signing identity is verified, and the exact release commit is approved on a real Android device.
-
-GitHub Actions candidate artifacts are development builds. They are not substitutes for a signed stable release and may use a debug signing identity.
-
-## Why an Android application?
-
-The Mol* web application already provides a capable browser-based viewer. This project adds Android-native workflows around the same Viewer:
-
-- open supported files directly from a file manager;
+- open supported files from Android file managers;
 - receive `VIEW`, `SEND`, and `SEND_MULTIPLE` intents;
 - use Mol*'s own file picker through Android's Storage Access Framework;
-- install stable and candidate builds side by side;
-- follow system light/dark mode and avoid system-bar overlap;
-- keep the Viewer runtime available as an APK instead of depending on a browser tab.
+- follow the system light/dark setting and avoid system-bar overlap;
+- install candidate builds beside stable releases.
 
-Files are transported to browser `File` objects with their original names and MIME types, then delegated to `viewer.loadFiles()`. Android does not maintain a separate molecular-format registry or parser.
+Files are delivered to Mol* as browser `File` objects with their original names and MIME types. Parsing, decompression, representations, selections, rendering, and scientific workflows remain Mol* responsibilities.
 
 ## Architecture
 
 ```text
-Layer 3  one explicit mobile policy: hide the non-live log panel
+Layer 3  minimal mobile policy
+   ↓
 Layer 2  Android lifecycle, files, theme, recovery, and stable bridge
-Layer 1  official prebuilt Mol* Viewer runtime, vendored unmodified
+   ↓
+Layer 1  upstream prebuilt Mol* Viewer runtime, vendored unmodified
 ```
 
-Mol* owns molecular parsing, decompression, representations, selections, rendering, analysis, state, and the normal user interface. See [the architecture document](docs/development/architecture.md) for the complete boundary.
+See [Architecture](docs/architecture.md) for the complete boundary.
 
 ## Documentation
 
-### Using the application
+Use the [Mol* Viewer documentation](https://molstar.org/viewer-docs/) for Viewer controls, selections, representations, measurements, sessions, and other scientific workflows.
 
-- [User guide](docs/user/README.md)
-- [Troubleshooting](docs/user/troubleshooting.md)
+This repository documents only the Android-specific behavior:
 
-### Developing and maintaining the project
-
+- [Using the Android app](docs/android.md)
+- [Maintenance and releases](docs/maintenance.md)
 - [Contributing](CONTRIBUTING.md)
-- [Developer documentation](docs/development/README.md)
-- [Upstream Mol* synchronization](docs/development/upstream-molstar.md)
-- [Automation and releases](docs/development/automation.md)
-- [Naming, branding, and upstream guidance](docs/project/naming-and-branding.md)
-- [Security policy](SECURITY.md)
+- [Security](SECURITY.md)
 
-Owner-specific operational procedures are maintained separately from this public repository.
+## Build
 
-## Quick build
-
-Prerequisites:
-
-- Node.js 24.x and npm 11 or newer;
-- JDK 17;
-- Android SDK platform 36 and build-tools 36.0.0;
-- Bash and standard Unix command-line tools.
+Requirements: Node.js 24.x, npm 11 or newer, JDK 17, Android SDK platform 36, and build-tools 36.0.0.
 
 ```bash
-git clone https://github.com/daylight-00/molstar-viewer-android.git
+git clone https://github.com/molstar/molstar-viewer-android.git
 cd molstar-viewer-android
 nvm install
 nvm use
@@ -75,20 +54,8 @@ bash scripts/verify.sh
 bash scripts/ci/build-channel.sh candidate debug
 ```
 
-The tracked Gradle wrapper is authoritative. CI uses the same repository-owned scripts as local development.
+Stable releases require permanent signing and approval of the exact release commit on a real Android device. GitHub Actions artifacts are development builds.
 
-## Releases
+## License
 
-GitHub Actions maintains three bounded paths:
-
-- ordinary CI builds a candidate-debug artifact;
-- scheduled upstream checks prepare a signed, parallel-installable candidate pull request;
-- stable publication is manual and requires the exact commit approved on a real Android device.
-
-Stable release artifacts are published through GitHub Releases after signing and device approval. See [release documentation](docs/development/releasing.md).
-
-## Upstream and license
-
-Mol* is distributed under the MIT License. Its upstream license and provenance are included under `app/src/main/assets/viewer/vendor/molstar/`.
-
-This Android host is also MIT-licensed. See [LICENSE](LICENSE).
+Mol* and this Android host are distributed under the MIT License. Upstream license and provenance are included under `app/src/main/assets/viewer/vendor/molstar/`.

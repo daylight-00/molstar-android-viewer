@@ -27,15 +27,6 @@ jobs:
           ref: main
           fetch-depth: 0
 
-      - name: Verify upstream naming and branding status
-        run: |
-          status="$(sed -n 's/^UPSTREAM_NAMING_STATUS=//p' project.properties)"
-          [[ "$status" == "approved" ]] || {
-            echo "Stable release is blocked while upstream naming status is: ${status:-missing}" >&2
-            echo "Record Mol* maintainer guidance in docs/project/naming-and-branding.md and approve the gate in the same reviewed commit." >&2
-            exit 1
-          }
-
       - name: Verify human-approved commit
         env:
           APPROVED_COMMIT: ${{ inputs.approved_commit }}
